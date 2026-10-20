@@ -30,8 +30,6 @@ jobs:
           php-version: ${{ matrix.php }}
           extensions: sodium, pdo_sqlite
           coverage: none
-      # Until the porro/* packages are on Packagist, resolve them from GitHub.
-      - run: composer config repositories.php-core vcs https://github.com/Porrodev/php-core
       # Laravel 11 is past security support, so Composer blocks it by default.
       # The connector still supports it: those are the sites Porro flags.
       - if: matrix.laravel == '11.*'
