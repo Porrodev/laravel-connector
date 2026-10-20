@@ -13,6 +13,21 @@ abstract class TestCase extends Orchestra
         return [PorroServiceProvider::class];
     }
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // The heartbeat lives in testbench's shared storage folder, so one
+        // test's beat would otherwise leak into the next.
+        $this->forgetHeartbeat();
+        $this->beforeApplicationDestroyed(fn () => $this->forgetHeartbeat());
+    }
+
+    private function forgetHeartbeat(): void
+    {
+        @unlink(storage_path('framework/porro-heartbeat'));
+    }
+
     protected function defineEnvironment($app): void
     {
         $app['config']->set('database.default', 'testing');
