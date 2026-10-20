@@ -37,7 +37,7 @@ class Reporter
         return $report;
     }
 
-    public function send(?string $key = null, ?string $url = null, bool $withPackages = false): Result
+    public function send(?string $key = null, ?string $url = null, bool $withPackages = false, string $trigger = 'manual'): Result
     {
         $client = new Client(
             SiteKey::parse((string) ($key ?? config('porro.key'))),
@@ -45,11 +45,11 @@ class Reporter
             $this->transport(),
         );
 
-        $report = $this->build($withPackages);
+        $report = $this->build($withPackages)->trigger($trigger);
         $result = $client->send($report);
 
         if ($result->ok && $result->needLock && ! $report->includesPackages()) {
-            $report = $this->build(true);
+            $report = $this->build(true)->trigger($trigger);
             $result = $client->send($report);
         }
 

@@ -4,12 +4,20 @@ namespace Porro\Laravel\Commands;
 
 use Illuminate\Console\Command;
 use InvalidArgumentException;
+use Porro\Core\Cron;
+use Porro\Core\CronResult;
+use Porro\Core\CrontabIo;
 use Porro\Core\SiteKey;
+use Porro\Laravel\Heartbeat;
 use Porro\Laravel\Reporter;
 
 class ConnectCommand extends Command
 {
-    protected $signature = 'porro:connect {key : The site key from Porro} {--url= : Only if you run Porro somewhere other than app.porro.dev}';
+    protected $signature = 'porro:connect
+        {key : The site key from Porro}
+        {--url= : Only if you run Porro somewhere other than app.porro.dev}
+        {--cron : Add the scheduler to this server\'s crontab without asking}
+        {--no-cron : Don\'t touch the crontab}';
 
     protected $description = 'Connect this site to Porro and send the first report';
 
@@ -26,7 +34,7 @@ class ConnectCommand extends Command
             return self::FAILURE;
         }
 
-        $result = $reporter->send($key, $url ?? (string) config('porro.url'), withPackages: true);
+        $result = $reporter->send($key, $url ?? (string) config('porro.url'), withPackages: true, trigger: 'connect');
 
         if (! $result->ok) {
             $this->components->error("Porro didn’t accept the report: {$result->error}");
@@ -46,12 +54,70 @@ class ConnectCommand extends Command
             }
         }
 
+        $this->setUpCron();
+
         $this->components->bulletList([
-            'Reports run every '.config('porro.interval').' minutes on the scheduler. Make sure `schedule:run` is in cron.',
             'Add `php artisan porro:report` to your deploy script so Porro hears about deploys straight away.',
         ]);
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Reports run on Laravel's scheduler, which needs one cron line. Add it
+     * for the agency when the server allows, otherwise show it to copy.
+     */
+    protected function setUpCron(): void
+    {
+        $command = $this->schedulerCommand();
+        $directory = $this->laravel->basePath();
+        $line = Cron::line('* * * * *', $directory, $command);
+        $io = $this->laravel->make(CrontabIo::class);
+
+        $lastRun = Heartbeat::lastRun();
+        if ($lastRun !== null && strtotime($lastRun) >= time() - 300) {
+            $this->components->info('The scheduler is running, so reports will go every '.config('porro.interval').' minutes.');
+
+            return;
+        }
+
+        $crontab = Cron::current($io);
+        if ($crontab !== null && Cron::hasEntry($crontab, $directory, $command)) {
+            $this->components->info('The scheduler is already in this server’s crontab. Reports will go every '.config('porro.interval').' minutes.');
+
+            return;
+        }
+
+        $install = match (true) {
+            (bool) $this->option('no-cron') => false,
+            (bool) $this->option('cron') => true,
+            $crontab === null, ! $this->input->isInteractive() => false,
+            default => $this->components->confirm('Reports run on the scheduler, which needs one cron line. Add it to this server’s crontab now?', true),
+        };
+
+        $result = $install ? Cron::install($line, $directory, $command, $io) : null;
+
+        if ($result === CronResult::Installed || $result === CronResult::AlreadyInstalled) {
+            $this->components->info('Added the scheduler to this server’s crontab. Reports will go every '.config('porro.interval').' minutes.');
+
+            return;
+        }
+
+        if ($result === CronResult::Failed || $result === CronResult::Unavailable) {
+            $this->components->warn('Couldn’t update the crontab on this server.');
+        }
+
+        $this->components->warn('One step left: add this cron line so reports keep coming. In Forge or Ploi, add it as a scheduled job; anywhere else, run `crontab -e`.');
+        $this->line("  {$line}");
+        $this->newLine();
+    }
+
+    /**
+     * What cron runs from the project folder.
+     */
+    protected function schedulerCommand(): string
+    {
+        return 'artisan schedule:run';
     }
 
     /**

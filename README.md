@@ -9,7 +9,11 @@ composer require porro/laravel-connector
 php artisan porro:connect <site key>
 ```
 
-Copy the site key from the site's page in Porro. `porro:connect` writes `PORRO_KEY` to `.env` and sends the first report. After that the connector reports every 15 minutes on the scheduler, so make sure `schedule:run` is in cron. Add `php artisan porro:report` to your deploy script so Porro hears about deploys straight away.
+Copy the site key from the site's page in Porro. `porro:connect` writes `PORRO_KEY` to `.env` and sends the first report.
+
+Reports then go every 15 minutes on Laravel's scheduler, which needs one cron line. If the scheduler isn't already running, `porro:connect` offers to add it to the server's crontab for you, with the right PHP binary and project folder. If it can't, it prints the line to paste into Forge, Ploi or `crontab -e`. Use `--cron` to add it without asking (handy in provisioning scripts) or `--no-cron` to leave the crontab alone.
+
+Add `php artisan porro:report` to your deploy script so Porro hears about deploys straight away.
 
 Using Filament or Statamic? Install [`porro/filament-connector`](https://github.com/Porrodev/filament-connector) or [`porro/statamic-connector`](https://github.com/Porrodev/statamic-connector) instead. They include this package.
 
@@ -28,7 +32,7 @@ Content, customer or user data, environment values or secrets. Run `php artisan 
 
 | Command | Does |
 |---|---|
-| `porro:connect <key>` | Saves the key and sends the first report |
+| `porro:connect <key>` | Saves the key, sends the first report and sets up cron (`--cron`, `--no-cron`) |
 | `porro:report` | Sends a report now (`--packages` forces the package list) |
 | `porro:status` | Shows what the next report contains (`--json` for the raw report) |
 

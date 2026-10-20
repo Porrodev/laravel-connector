@@ -4,6 +4,7 @@ namespace Porro\Laravel;
 
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\ServiceProvider;
+use Porro\Core\CrontabIo;
 use Porro\Laravel\Collectors\BackupCollector;
 use Porro\Laravel\Collectors\HealthCollector;
 use Porro\Laravel\Collectors\LaravelCollector;
@@ -18,6 +19,7 @@ class PorroServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__.'/../config/porro.php', 'porro');
 
         $this->app->singleton(Reporter::class);
+        $this->app->bind(CrontabIo::class);
         $this->app->tag([LaravelCollector::class, BackupCollector::class, HealthCollector::class], 'porro.collectors');
     }
 
@@ -38,7 +40,7 @@ class PorroServiceProvider extends ServiceProvider
             $interval = max(1, min(60, (int) config('porro.interval')));
 
             $schedule->call(fn () => Heartbeat::beat())->everyMinute()->name('porro:heartbeat');
-            $schedule->command('porro:report')->cron("*/{$interval} * * * *")->withoutOverlapping()->runInBackground();
+            $schedule->command('porro:report', ['--scheduled'])->cron("*/{$interval} * * * *")->withoutOverlapping()->runInBackground();
         });
     }
 }

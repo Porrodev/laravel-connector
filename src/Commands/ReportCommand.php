@@ -8,7 +8,9 @@ use Porro\Laravel\Reporter;
 
 class ReportCommand extends Command
 {
-    protected $signature = 'porro:report {--packages : Send the full package list even if composer.lock is unchanged}';
+    protected $signature = 'porro:report
+        {--packages : Send the full package list even if composer.lock is unchanged}
+        {--scheduled : Set by the scheduler, so Porro knows cron is running}';
 
     protected $description = 'Send a report to Porro now (also runs on the schedule and is safe to add to your deploy script)';
 
@@ -27,7 +29,10 @@ class ReportCommand extends Command
         }
 
         try {
-            $result = $reporter->send(withPackages: (bool) $this->option('packages'));
+            $result = $reporter->send(
+                withPackages: (bool) $this->option('packages'),
+                trigger: $this->option('scheduled') ? 'schedule' : 'manual',
+            );
         } catch (InvalidArgumentException $e) {
             $this->components->error($e->getMessage());
 
