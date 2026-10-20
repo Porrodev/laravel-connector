@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
 use Porro\Core\CrontabIo;
 use Porro\Laravel\Heartbeat;
@@ -118,4 +119,26 @@ it('says when the scheduler is not in cron', function () {
     $this->artisan('porro:connect', ['key' => siteKey()['token'], '--no-cron' => true])->assertSuccessful();
 
     expect(json_decode(Http::recorded()[0][0]->body(), true)['health']['scheduler_in_crontab'])->toBeFalse();
+});
+
+it('refreshes a cached config so the scheduler sees the new key', function () {
+    $cached = $this->app->getCachedConfigPath();
+    @mkdir(dirname($cached), 0777, true);
+    file_put_contents($cached, '<?php return [];');
+
+    // The real command boots a fresh app from bootstrap/app.php.
+    $recached = false;
+    Artisan::command('config:cache', function () use (&$recached) {
+        $recached = true;
+    });
+
+    try {
+        $this->artisan('porro:connect', ['key' => siteKey()['token'], '--no-cron' => true])
+            ->expectsOutputToContain('Refreshed the cached config')
+            ->assertSuccessful();
+
+        expect($recached)->toBeTrue();
+    } finally {
+        @unlink($cached);
+    }
 });

@@ -51,6 +51,13 @@ class ConnectCommand extends Command
 
         $this->components->info('Connected. Porro has the first report.');
 
+        // A cached config never sees the new .env values, so the scheduler
+        // would never run porro:report. Rebuild the cache with them in.
+        if ($written && is_file($this->laravel->getCachedConfigPath())) {
+            $this->callSilently('config:cache');
+            $this->components->info('Refreshed the cached config so the scheduler picks up PORRO_KEY.');
+        }
+
         if (! $written) {
             $this->components->warn('Couldn’t write .env. Add these to the site’s environment:');
             $this->line("  PORRO_KEY={$key}");
