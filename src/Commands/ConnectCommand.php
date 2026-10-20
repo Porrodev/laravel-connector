@@ -4,6 +4,8 @@ namespace Porro\Laravel\Commands;
 
 use Illuminate\Console\Command;
 use InvalidArgumentException;
+use Porro\Core\Cron;
+use Porro\Core\CrontabIo;
 use Porro\Core\SiteKey;
 use Porro\Laravel\Commands\Concerns\SetsUpCron;
 use Porro\Laravel\Reporter;
@@ -33,7 +35,11 @@ class ConnectCommand extends Command
             return self::FAILURE;
         }
 
-        $result = $reporter->send($key, $url ?? (string) config('porro.url'), withPackages: true, trigger: 'connect');
+        // Tell Porro whether cron already runs the scheduler, so it can say
+        // "checking" rather than "add cron" until the first scheduled report.
+        $scheduled = Cron::isScheduled($this->laravel->basePath(), $this->schedulerCommand(), $this->laravel->make(CrontabIo::class));
+
+        $result = $reporter->send($key, $url ?? (string) config('porro.url'), withPackages: true, trigger: 'connect', health: ['scheduler_in_crontab' => $scheduled]);
 
         if (! $result->ok) {
             $this->components->error("Porro didn’t accept the report: {$result->error}");

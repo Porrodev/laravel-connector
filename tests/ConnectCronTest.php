@@ -54,7 +54,7 @@ it('does not ask when the scheduler is already in the crontab', function () {
     $this->crontab->contents = '* * * * * cd '.base_path()." && php artisan schedule:run >> /dev/null 2>&1\n";
 
     $this->artisan('porro:connect', ['key' => siteKey()['token']])
-        ->expectsOutputToContain('already in this server’s crontab')
+        ->expectsOutputToContain('Found the scheduler in this server’s cron')
         ->assertSuccessful();
 });
 
@@ -101,4 +101,21 @@ it('prints the line from porro:cron when the server has no crontab access', func
     $this->artisan('porro:cron')
         ->expectsOutputToContain('One step left')
         ->assertSuccessful();
+});
+
+it('tells Porro whether cron already runs the scheduler, and how often it reports', function () {
+    $this->crontab->contents = '* * * * * php8.3 '.base_path()."/artisan schedule:run >> /dev/null 2>&1\n";
+
+    $this->artisan('porro:connect', ['key' => siteKey()['token']])->assertSuccessful();
+
+    $health = json_decode(Http::recorded()[0][0]->body(), true)['health'];
+
+    expect($health['scheduler_in_crontab'])->toBeTrue()
+        ->and($health['report_interval'])->toBe(15);
+});
+
+it('says when the scheduler is not in cron', function () {
+    $this->artisan('porro:connect', ['key' => siteKey()['token'], '--no-cron' => true])->assertSuccessful();
+
+    expect(json_decode(Http::recorded()[0][0]->body(), true)['health']['scheduler_in_crontab'])->toBeFalse();
 });

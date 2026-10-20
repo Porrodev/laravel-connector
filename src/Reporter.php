@@ -37,7 +37,10 @@ class Reporter
         return $report;
     }
 
-    public function send(?string $key = null, ?string $url = null, bool $withPackages = false, string $trigger = 'manual'): Result
+    /**
+     * @param  array<string, mixed>  $health  extra health facts for this report only
+     */
+    public function send(?string $key = null, ?string $url = null, bool $withPackages = false, string $trigger = 'manual', array $health = []): Result
     {
         $client = new Client(
             SiteKey::parse((string) ($key ?? config('porro.key'))),
@@ -45,11 +48,11 @@ class Reporter
             $this->transport(),
         );
 
-        $report = $this->build($withPackages)->trigger($trigger);
+        $report = $this->withHealth($this->build($withPackages)->trigger($trigger), $health);
         $result = $client->send($report);
 
         if ($result->ok && $result->needLock && ! $report->includesPackages()) {
-            $report = $this->build(true)->trigger($trigger);
+            $report = $this->withHealth($this->build(true)->trigger($trigger), $health);
             $result = $client->send($report);
         }
 
@@ -58,6 +61,18 @@ class Reporter
         }
 
         return $result;
+    }
+
+    /**
+     * @param  array<string, mixed>  $health
+     */
+    private function withHealth(Report $report, array $health): Report
+    {
+        foreach ($health as $key => $value) {
+            $report->health($key, $value);
+        }
+
+        return $report;
     }
 
     /**

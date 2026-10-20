@@ -33,12 +33,13 @@ trait SetsUpCron
             return;
         }
 
-        $crontab = Cron::current($io);
-        if ($crontab !== null && Cron::hasEntry($crontab, $directory, $command)) {
-            $this->components->info('The scheduler is already in this server’s crontab. Reports will go every '.config('porro.interval').' minutes.');
+        if (Cron::isScheduled($directory, $command, $io) === true) {
+            $this->components->info('Found the scheduler in this server’s cron. The first scheduled report is due by '.$this->nextReportAt().', then every '.config('porro.interval').' minutes.');
 
             return;
         }
+
+        $crontab = Cron::current($io);
 
         $install = match (true) {
             $skip => false,
@@ -62,6 +63,17 @@ trait SetsUpCron
         $this->components->warn('One step left: add this cron line so reports keep coming. In Forge or Ploi, add it as a scheduled job; anywhere else, run `crontab -e`.');
         $this->line("  {$line}");
         $this->newLine();
+    }
+
+    /**
+     * When the scheduler next runs porro:report, e.g. "14:45".
+     */
+    protected function nextReportAt(): string
+    {
+        $interval = max(1, min(60, (int) config('porro.interval')));
+        $minutes = (int) floor(time() / 60);
+
+        return date('H:i', (intdiv($minutes, $interval) + 1) * $interval * 60);
     }
 
     /**

@@ -25,6 +25,7 @@ class LaravelCollector implements Collector
 
         $report->health('debug', (bool) config('app.debug'));
         $report->health('scheduler_last_run', Heartbeat::lastRun());
+        $report->health('report_interval', max(1, min(60, (int) config('porro.interval'))));
         $report->health('failed_jobs_24h', $this->failedJobs());
         $report->health('pending_migrations', $this->pendingMigrations());
     }
