@@ -1,0 +1,57 @@
+{
+    "name": "porro/laravel-connector",
+    "description": "Read-only Porro connector for Laravel: versions, advisories, scheduler, queues, migrations and backups.",
+    "type": "library",
+    "license": "MIT",
+    "homepage": "https://porro.dev",
+    "keywords": [
+        "porro",
+        "laravel",
+        "monitoring",
+        "security"
+    ],
+    "require": {
+        "php": "^8.2",
+        "porro/php-core": "^0.1",
+        "illuminate/support": "^11.0|^12.0|^13.0",
+        "illuminate/console": "^11.0|^12.0|^13.0",
+        "illuminate/http": "^11.0|^12.0|^13.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Porro\\Laravel\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Porro\\Laravel\\PorroServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "stable",
+    "require-dev": {
+        "orchestra/testbench": "^9.0|^10.0|^11.0",
+        "pestphp/pest": "^3.0|^4.0",
+        "laravel/pint": "^1.18"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Porro\\Laravel\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "pest",
+        "lint": "pint"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "support": {
+        "issues": "https://github.com/Porrodev/laravel-connector/issues",
+        "source": "https://github.com/Porrodev/laravel-connector"
+    }
+}
