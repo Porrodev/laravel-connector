@@ -37,6 +37,23 @@ it('asks for a key before reporting', function () {
     Http::assertNothingSent();
 });
 
+it('reports a deploy, and never fails the deploy script', function () {
+    config(['porro.key' => siteKey()['token']]);
+    Http::fake(['porro.test/*' => Http::sequence()
+        ->push(['ok' => true], 202)
+        ->whenEmpty(Http::response(['ok' => false, 'error' => 'Invalid signature.'], 401))]);
+
+    $this->artisan('porro:report', ['--deploy' => true])->assertSuccessful();
+    expect(json_decode(Http::recorded()[0][0]->body(), true)['trigger'])->toBe('deploy');
+
+    // Porro refusing it, or no key yet, still lets the deploy finish.
+    $this->artisan('porro:report', ['--deploy' => true])->assertSuccessful();
+    $this->artisan('porro:report')->assertFailed();
+
+    config(['porro.key' => null]);
+    $this->artisan('porro:report', ['--deploy' => true])->assertSuccessful();
+});
+
 it('leaves out backup and health results when spatie packages are not installed', function () {
     $report = app(Reporter::class)->build()->toArray();
 
