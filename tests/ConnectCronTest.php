@@ -85,3 +85,20 @@ it('tells Porro what sent each report', function () {
     expect(collect(Http::recorded())->map(fn ($pair) => json_decode($pair[0]->body(), true)['trigger'])->all())
         ->toBe(['connect', 'manual', 'schedule']);
 });
+
+it('adds the scheduler on its own with porro:cron, without the site key', function () {
+    $this->artisan('porro:cron')
+        ->expectsOutputToContain('Added the scheduler to this server’s crontab')
+        ->assertSuccessful();
+
+    expect($this->crontab->contents)->toContain('artisan schedule:run');
+    Http::assertNothingSent();
+});
+
+it('prints the line from porro:cron when the server has no crontab access', function () {
+    $this->crontab->works = false;
+
+    $this->artisan('porro:cron')
+        ->expectsOutputToContain('One step left')
+        ->assertSuccessful();
+});

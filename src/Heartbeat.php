@@ -6,8 +6,8 @@ use Illuminate\Support\Facades\Cache;
 use Throwable;
 
 /**
- * Written every minute by the scheduler, so Porro can tell the scheduler
- * is running even between reports.
+ * Written each time the scheduler runs porro:report, so Porro can tell
+ * the site's scheduler is running.
  */
 final class Heartbeat
 {

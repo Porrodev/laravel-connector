@@ -4,6 +4,7 @@ namespace Porro\Laravel\Commands;
 
 use Illuminate\Console\Command;
 use InvalidArgumentException;
+use Porro\Laravel\Heartbeat;
 use Porro\Laravel\Reporter;
 
 class ReportCommand extends Command
@@ -26,6 +27,10 @@ class ReportCommand extends Command
             $this->components->warn('No PORRO_KEY set. Run `php artisan porro:connect <site key>` first.');
 
             return self::FAILURE;
+        }
+
+        if ($this->option('scheduled')) {
+            Heartbeat::beat();
         }
 
         try {

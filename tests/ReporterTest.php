@@ -81,6 +81,21 @@ it('reports on the schedule once a key is set', function () {
 
     $events = collect(app(Schedule::class)->events());
 
-    expect($events->first(fn ($e) => str_contains((string) $e->command, 'porro:report'))?->expression)->toBe('*/15 * * * *')
-        ->and($events->contains(fn ($e) => $e->description === 'porro:heartbeat'))->toBeTrue();
+    $porro = $events->filter(fn ($e) => str_contains((string) $e->command.$e->description, 'porro'));
+
+    // One task only, so environments that scale to zero can sleep between reports.
+    expect($porro)->toHaveCount(1)
+        ->and($porro->first()->expression)->toBe('*/15 * * * *')
+        ->and((string) $porro->first()->command)->toContain('porro:report')->toContain('--scheduled');
+});
+
+it('records the heartbeat when the scheduler sends a report', function () {
+    config(['porro.key' => siteKey()['token']]);
+    Http::fake(['porro.test/*' => Http::response(['ok' => true], 202)]);
+
+    $this->artisan('porro:report')->assertSuccessful();
+    expect(Heartbeat::lastRun())->toBeNull();
+
+    $this->artisan('porro:report', ['--scheduled' => true])->assertSuccessful();
+    expect(Heartbeat::lastRun())->not->toBeNull();
 });

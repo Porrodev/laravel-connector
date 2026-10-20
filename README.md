@@ -11,7 +11,9 @@ php artisan porro:connect <site key>
 
 Copy the site key from the site's page in Porro. `porro:connect` writes `PORRO_KEY` to `.env` and sends the first report.
 
-Reports then go every 15 minutes on Laravel's scheduler, which needs one cron line. If the scheduler isn't already running, `porro:connect` offers to add it to the server's crontab for you, with the right PHP binary and project folder. If it can't, it prints the line to paste into Forge, Ploi or `crontab -e`. Use `--cron` to add it without asking (handy in provisioning scripts) or `--no-cron` to leave the crontab alone.
+Reports then go every 15 minutes on Laravel's scheduler, which needs one cron line. If the scheduler isn't already running, `porro:connect` offers to add it to the server's crontab for you, with the right PHP binary and project folder. If it can't, it prints the line to paste into Forge, Ploi or `crontab -e`. Use `--cron` to add it without asking (handy in provisioning scripts) or `--no-cron` to leave the crontab alone. Skipped it, or connected from another machine? Run `php artisan porro:cron` on the server; it needs no key.
+
+On Laravel Cloud and Vapor the platform runs the scheduler for you, so there's no cron line: turn the scheduler on (Cloud) or leave it on (Vapor), and set `PORRO_KEY` as an environment variable.
 
 Add `php artisan porro:report` to your deploy script so Porro hears about deploys straight away.
 
@@ -33,6 +35,7 @@ Content, customer or user data, environment values or secrets. Run `php artisan 
 | Command | Does |
 |---|---|
 | `porro:connect <key>` | Saves the key, sends the first report and sets up cron (`--cron`, `--no-cron`) |
+| `porro:cron` | Adds the scheduler to the crontab on its own, no key needed |
 | `porro:report` | Sends a report now (`--packages` forces the package list) |
 | `porro:status` | Shows what the next report contains (`--json` for the raw report) |
 
