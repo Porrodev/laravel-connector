@@ -8,17 +8,21 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Porro\Core\Client;
 use Porro\Core\LockFile;
+use Porro\Core\NpmLockFile;
 use Porro\Core\Report;
 use Porro\Core\Result;
 use Porro\Core\SiteKey;
 
 /**
- * Builds a report from every collector and sends it. The package list is
- * only included when composer.lock has changed since Porro last saw it.
+ * Builds a report from every collector and sends it. Each package list
+ * (composer.lock, and the npm lock file if there is one) is only included
+ * when that file has changed since Porro last saw it.
  */
 class Reporter
 {
     private const SENT_LOCK_KEY = 'porro:lock-hash';
+
+    private const SENT_NPM_LOCK_KEY = 'porro:npm-lock-hash';
 
     public function __construct(private Application $app) {}
 
@@ -33,6 +37,10 @@ class Reporter
 
         $lock = LockFile::read($this->app->basePath());
         $report->lock($lock, $withPackages || ($lock && Cache::get(self::SENT_LOCK_KEY) !== $lock->hash));
+
+        // The JavaScript the site builds with (Vite, Alpine…), same rules.
+        $npm = NpmLockFile::read($this->app->basePath());
+        $report->npmLock($npm, $withPackages || ($npm && Cache::get(self::SENT_NPM_LOCK_KEY) !== $npm->hash));
 
         return $report;
     }
@@ -51,13 +59,17 @@ class Reporter
         $report = $this->withHealth($this->build($withPackages)->trigger($trigger), $health);
         $result = $client->send($report);
 
-        if ($result->ok && $result->needLock && ! $report->includesPackages()) {
+        if ($result->ok && (($result->needLock && ! $report->includesPackages()) || ($result->needNpmLock && ! $report->includesNpmPackages()))) {
             $report = $this->withHealth($this->build(true)->trigger($trigger), $health);
             $result = $client->send($report);
         }
 
         if ($result->ok && $report->includesPackages()) {
             Cache::forever(self::SENT_LOCK_KEY, $report->lockHash());
+        }
+
+        if ($result->ok && $report->includesNpmPackages()) {
+            Cache::forever(self::SENT_NPM_LOCK_KEY, $report->npmLockHash());
         }
 
         return $result;

@@ -54,6 +54,55 @@ it('sends packages only when the lock file changed or Porro asks', function () {
         ->and($bodies[1]['lock']['packages'])->toBeNull();
 });
 
+it('reports the npm lock file too, sending its packages only when it changed or Porro asks', function () {
+    $key = siteKey()['token'];
+    config(['porro.key' => $key]);
+    file_put_contents(base_path('package.json'), json_encode(['dependencies' => ['alpinejs' => '^3.14'], 'devDependencies' => ['vite' => '^5.4']]));
+    file_put_contents(base_path('package-lock.json'), json_encode(['lockfileVersion' => 3, 'packages' => [
+        '' => [],
+        'node_modules/alpinejs' => ['version' => '3.14.1'],
+        'node_modules/vite' => ['version' => '5.4.8', 'dev' => true],
+    ]]));
+    Http::fake(['porro.test/*' => Http::sequence()
+        ->push(['ok' => true], 202)
+        ->push(['ok' => true], 202)
+        ->push(['ok' => true, 'need_npm_lock' => true], 202)
+        ->push(['ok' => true], 202)]);
+
+    try {
+        $reporter = app(Reporter::class);
+        $reporter->send();
+        $reporter->send();
+        $reporter->send(); // Porro has lost it and asks
+
+    } finally {
+        @unlink(base_path('package.json'));
+        @unlink(base_path('package-lock.json'));
+    }
+
+    $bodies = collect(Http::recorded())->map(fn ($pair) => json_decode($pair[0]->body(), true));
+
+    expect($bodies[0]['npm_lock']['packages'])->toBe([
+        ['name' => 'alpinejs', 'version' => '3.14.1', 'dev' => false, 'direct' => true],
+        ['name' => 'vite', 'version' => '5.4.8', 'dev' => true, 'direct' => true],
+    ])
+        ->and($bodies[1]['npm_lock']['packages'])->toBeNull()
+        ->and($bodies[1]['npm_lock']['hash'])->toBe($bodies[0]['npm_lock']['hash'])
+        // Asked for the packages, the third report is sent again with them.
+        ->and($bodies)->toHaveCount(4)
+        ->and($bodies[2]['npm_lock']['packages'])->toBeNull()
+        ->and($bodies[3]['npm_lock']['packages'])->toBeArray();
+});
+
+it('says when a site has no npm lock file', function () {
+    config(['porro.key' => siteKey()['token']]);
+    Http::fake(['porro.test/*' => Http::response(['ok' => true], 202)]);
+
+    app(Reporter::class)->send();
+
+    expect(json_decode(Http::recorded()[0][0]->body(), true))->toHaveKey('npm_lock', null);
+});
+
 it('connects, writes the key to .env and sends the first report', function () {
     $env = tempnam(sys_get_temp_dir(), 'env');
     file_put_contents($env, "APP_NAME=Test\n");
