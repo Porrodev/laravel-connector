@@ -42,5 +42,5 @@ it('leaves out backup and health results when spatie packages are not installed'
 
     expect($report['health'])->not->toHaveKey('backup_configured')
         ->and($report['health'])->not->toHaveKey('last_backup_at')
-        ->and($report['checks'] ?? [])->toBe([]);
+        ->and($report['health'])->not->toHaveKey('checks');
 });
