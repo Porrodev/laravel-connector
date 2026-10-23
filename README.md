@@ -24,6 +24,7 @@ Using Filament or Statamic? Install [`porro/filament-connector`](https://github.
 - Laravel, PHP and package versions (names and versions from `composer.lock`; the list is only sent when the lock file changes)
 - The environment name, and whether debug mode is on (true or false, never the value of any setting)
 - Scheduler heartbeat, failed jobs in the last 24 hours, pending migrations
+- The database engine and version (e.g. MySQL 8.0.36, MariaDB 10.11.6), whether it's on the same server, and the provider if it's a known managed database. Never its host, name, user or password
 - Newest backup date from `spatie/laravel-backup` and check results from `spatie/laravel-health`, if installed
 
 ## What never does
