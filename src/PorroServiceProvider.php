@@ -34,11 +34,19 @@ class PorroServiceProvider extends ServiceProvider
         $this->commands([ConnectCommand::class, CronCommand::class, ReportCommand::class, StatusCommand::class]);
 
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
-            if (! config('porro.enabled') || ! config('porro.key')) {
+            if (! config('porro.enabled')) {
                 return;
             }
 
             $interval = max(1, min(60, (int) config('porro.interval')));
+
+            // Not connected: still note that the scheduler runs, so the
+            // Site health panel can tell when cron is missing.
+            if (! config('porro.key')) {
+                $schedule->call(fn () => Heartbeat::beat())->name('porro:heartbeat')->cron("*/{$interval} * * * *");
+
+                return;
+            }
 
             // The scheduled report is the heartbeat: one task every few
             // minutes, so environments that scale to zero can still sleep.
