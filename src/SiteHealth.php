@@ -52,6 +52,19 @@ class SiteHealth
     }
 
     /**
+     * The last result, without running any checks: for places that must
+     * never wait on the network, like a dashboard widget.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function cached(): ?array
+    {
+        $health = Cache::get(self::CACHE_KEY);
+
+        return is_array($health) ? $health : null;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function run(): array

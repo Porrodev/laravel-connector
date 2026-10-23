@@ -68,6 +68,18 @@ it('caches the panel for five minutes unless asked to check again', function () 
     Http::assertSentCount(5);
 });
 
+it('hands back the last result without checking anything', function () {
+    fakeHealthApis();
+
+    expect(app(SiteHealth::class)->cached())->toBeNull();
+
+    $health = app(SiteHealth::class)->get();
+    Http::assertSentCount(3);
+
+    expect(app(SiteHealth::class)->cached())->toBe($health);
+    Http::assertSentCount(3);
+});
+
 it('lets layers add their own checks', function () {
     fakeHealthApis();
     app()->tag([ExtraCheck::class], 'porro.health');
