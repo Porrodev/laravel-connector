@@ -30,7 +30,11 @@ class StatusCommand extends Command
         }
 
         foreach ($report['health'] as $key => $value) {
-            if ($key !== 'checks') {
+            if ($key === 'failed_jobs_groups') {
+                foreach ($value ?? [] as $group) {
+                    $this->components->twoColumnDetail('  '.$group['job'].' × '.$group['count'], trim(($group['exception'] ?? '').' '.($group['location'] ?? '')));
+                }
+            } elseif ($key !== 'checks') {
                 $this->components->twoColumnDetail(str_replace('_', ' ', ucfirst($key)), is_bool($value) ? ($value ? 'yes' : 'no') : (string) ($value ?? '—'));
             }
         }

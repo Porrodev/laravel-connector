@@ -5,6 +5,8 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
+use Porro\Laravel\Collectors\LaravelCollector;
 use Porro\Laravel\Heartbeat;
 use Porro\Laravel\Reporter;
 
@@ -35,6 +37,91 @@ it('counts failed jobs from the last 24 hours', function () {
     DB::table('failed_jobs')->insert([['uuid' => 'a', 'failed_at' => now()->subHour()], ['uuid' => 'b', 'failed_at' => now()->subDays(3)]]);
 
     expect(app(Reporter::class)->build()->toArray()['health']['failed_jobs_24h'])->toBe(1);
+});
+
+function failedJobsTable(): void
+{
+    config(['queue.failed.driver' => 'database-uuids', 'queue.failed.table' => 'failed_jobs', 'queue.failed.database' => 'testing']);
+    Schema::create('failed_jobs', function ($table) {
+        $table->id();
+        $table->string('uuid');
+        $table->text('connection');
+        $table->text('queue');
+        $table->longText('payload');
+        $table->longText('exception');
+        $table->timestamp('failed_at');
+    });
+}
+
+function failedJob(string $job, string $exception, $failedAt): array
+{
+    return [
+        'uuid' => (string) Str::uuid(),
+        'connection' => 'redis',
+        'queue' => 'default',
+        'payload' => json_encode(['uuid' => 'x', 'displayName' => $job, 'job' => 'Illuminate\\Queue\\CallQueuedHandler@call', 'data' => ['command' => str_repeat('x', 5000)]]),
+        'exception' => $exception."\nStack trace:\n#0 /var/www/vendor/laravel/framework/src/Foo.php(10): bar()\n".str_repeat('#1 frame'."\n", 500),
+        'failed_at' => $failedAt,
+    ];
+}
+
+it('groups failed jobs by job and exception without messages by default', function () {
+    failedJobsTable();
+    $base = base_path();
+    DB::table('failed_jobs')->insert([
+        failedJob('App\\Jobs\\SendInvoice', "Symfony\\Component\\Mailer\\Exception\\TransportException: Mail to jane@example.com failed in {$base}/app/Jobs/SendInvoice.php:42", now()->subHours(2)),
+        failedJob('App\\Jobs\\SendInvoice', "Symfony\\Component\\Mailer\\Exception\\TransportException: Mail to bob@example.com failed in {$base}/app/Jobs/SendInvoice.php:42", now()->subHour()),
+        failedJob('App\\Jobs\\SyncOrders', 'RuntimeException: Order 12345678 not found in /elsewhere/src/Api.php:7', now()->subMinutes(5)),
+        failedJob('App\\Jobs\\Old', 'RuntimeException: old in /x.php:1', now()->subDays(2)),
+    ]);
+
+    $health = app(Reporter::class)->build()->toArray()['health'];
+
+    expect($health['failed_jobs_24h'])->toBe(3)
+        ->and($health['failed_jobs_groups'])->toHaveCount(2)
+        ->and($health['failed_jobs_groups'][0])->toMatchArray([
+            'job' => 'App\\Jobs\\SendInvoice',
+            'exception' => 'Symfony\\Component\\Mailer\\Exception\\TransportException',
+            'location' => 'app/Jobs/SendInvoice.php:42',
+            'count' => 2,
+            'queue' => 'default',
+            'connection' => 'redis',
+        ])
+        ->and($health['failed_jobs_groups'][0])->not->toHaveKey('message')
+        ->and($health['failed_jobs_groups'][1]['location'])->toBe('Api.php:7')
+        ->and(json_encode($health))->not->toContain('example.com')->not->toContain('12345678')->not->toContain('/elsewhere');
+
+    $this->artisan('porro:status')->expectsOutputToContain('App\\Jobs\\SendInvoice × 2')->assertSuccessful();
+});
+
+it('sends redacted first lines of messages when turned on', function () {
+    failedJobsTable();
+    config(['porro.failed_jobs.messages' => true]);
+    DB::table('failed_jobs')->insert([
+        failedJob('App\\Jobs\\SyncOrders', "RuntimeException: Order 12345678 for jane.doe@example.co.uk failed\nsecond line in /x/Api.php:7", now()->subMinutes(5)),
+    ]);
+
+    $group = app(Reporter::class)->build()->toArray()['health']['failed_jobs_groups'][0];
+
+    expect($group['message'])->toBe('Order [number] for [email] failed')
+        ->and($group['location'])->toBe('Api.php:7');
+});
+
+it('sends no groups when nothing failed', function () {
+    failedJobsTable();
+
+    $health = app(Reporter::class)->build()->toArray()['health'];
+
+    expect($health['failed_jobs_24h'])->toBe(0)->and($health['failed_jobs_groups'])->toBeNull();
+});
+
+it('parses stored exceptions and payloads defensively', function () {
+    expect(LaravelCollector::exception('Illuminate\\Queue\\MaxAttemptsExceededException: App\\Jobs\\X has been attempted too many times.'))
+        ->toBe(['class' => 'Illuminate\\Queue\\MaxAttemptsExceededException', 'message' => 'App\\Jobs\\X has been attempted too many times.', 'location' => null])
+        ->and(LaravelCollector::exception('garbage!'))->toBe(['class' => null, 'message' => null, 'location' => null])
+        ->and(LaravelCollector::jobName('{"uuid":"a","displayName":"App\\\\Jobs\\\\Cut'))->toBe('Unknown job')
+        ->and(LaravelCollector::jobName('{"displayName":"App\\\\Jobs\\\\Ok","job":'))->toBe('App\\Jobs\\Ok')
+        ->and(LaravelCollector::redact(str_repeat('a', 300)))->toHaveLength(160);
 });
 
 it('sends packages only when the lock file changed or Porro asks', function () {

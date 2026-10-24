@@ -14,4 +14,11 @@ return [
     // Turn reporting off without uninstalling, e.g. on local machines.
     'enabled' => (bool) env('PORRO_ENABLED', true),
 
+    'failed_jobs' => [
+        // Send the first line of each failed job's exception message (cut to
+        // 160 characters, emails and long numbers redacted). Off by default:
+        // messages can hold customer data. Job and exception names are always sent.
+        'messages' => (bool) env('PORRO_FAILED_JOB_MESSAGES', false),
+    ],
+
 ];
