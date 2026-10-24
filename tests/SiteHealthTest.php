@@ -42,7 +42,8 @@ it('sees the scheduler from its heartbeat', function () {
 
 it('adds the site’s Porro findings once connected, signed with the site key', function () {
     fakeHealthApis(['findings' => [['kind' => 'ssl_expiring', 'rank' => 3, 'title' => 'SSL certificate expires in 9 days', 'scope' => 'site', 'url' => 'https://porro.test/acme/sites/example']]]);
-    config(['porro.key' => siteKey()['token']]);
+    $key = siteKey();
+    config(['porro.key' => $key['token']]);
 
     $health = app(SiteHealth::class)->get();
 
@@ -53,7 +54,15 @@ it('adds the site’s Porro findings once connected, signed with the site key', 
 
     Http::assertSent(fn (Request $request) => $request->url() === 'https://porro.test/api/v1/findings'
         && $request->method() === 'GET'
-        && $request->hasHeader('X-Porro-Signature'));
+        && signatureIsValid(array_map(fn ($values) => $values[0], $request->headers()), '', $key['public'], 'GET', '/api/v1/findings'));
+});
+
+it('treats an oversized response as a failure without reading all of it', function () {
+    Http::fake(['porro.test/api/v1/findings' => Http::response(str_repeat(' ', 6 * 1024 * 1024).'{"ok":true,"findings":[]}')]);
+    fakeHealthApis();
+    config(['porro.key' => siteKey()['token']]);
+
+    expect(app(SiteHealth::class)->get()['porro']['ok'])->toBeFalse();
 });
 
 it('caches the panel for five minutes unless asked to check again', function () {
@@ -64,6 +73,7 @@ it('caches the panel for five minutes unless asked to check again', function () 
     app(SiteHealth::class)->get();
     Http::assertSentCount(4);
 
+    // Porro's findings are fetched again; the public data keeps its own cache.
     app(SiteHealth::class)->get(fresh: true);
     Http::assertSentCount(5);
 });

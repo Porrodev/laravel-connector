@@ -1,9 +1,11 @@
 # Changelog
 
-## Unreleased (0.2.1)
+## 0.2.1
 
+- Requires `porro/php-core` 0.2.1: requests to Porro are signed for their method and path, and the panel only hides local issues Porro has actually raised.
+- "Check again" clears the cached Porro findings again (php-core now caches them per Porro URL and key).
+- The panel's HTTP client stops reading a response once it's over php-core's size limit.
 - Reports describe the default database connection (engine, version, whether it's on the same machine, managed provider) so Porro can flag an end-of-life database. The host, database name, user and credentials are never sent.
-- Requires `porro/php-core` 0.2.1.
 
 ## 0.2.0 - 2026-10-23
 
