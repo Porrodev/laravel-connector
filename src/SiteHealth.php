@@ -10,6 +10,7 @@ use InvalidArgumentException;
 use Porro\Core\Cron;
 use Porro\Core\CrontabIo;
 use Porro\Core\Health\Issue;
+use Porro\Core\Health\PorroFindings;
 use Porro\Core\Health\ReportChecks;
 use Porro\Core\Health\SiteHealth as Checks;
 use Porro\Core\Health\Sources;
@@ -45,7 +46,10 @@ class SiteHealth
     {
         if ($fresh) {
             Cache::forget(self::CACHE_KEY);
-            $this->sources()->forget('porro:'.($this->key()?->siteId ?? ''));
+
+            if ($key = $this->key()) {
+                (new PorroFindings($this->sources(), $key, (string) config('porro.url')))->forget();
+            }
         }
 
         return Cache::remember(self::CACHE_KEY, self::TTL, fn () => $this->run());
@@ -153,23 +157,30 @@ class SiteHealth
     }
 
     /**
-     * Laravel's HTTP client, so Http::fake() works in tests.
+     * Laravel's HTTP client, so Http::fake() works in tests. Streamed, so
+     * it stops reading once a response is over the limit.
      *
-     * @return Closure(string, string, array<string, string>, string|null, int): array{0: int, 1: string}
+     * @return Closure(string, string, array<string, string>, string|null, int, int): array{0: int, 1: string}
      */
     private function transport(): Closure
     {
-        return function (string $method, string $url, array $headers, ?string $body, int $timeout): array {
+        return function (string $method, string $url, array $headers, ?string $body, int $timeout, int $maxBytes = Sources::MAX_BYTES): array {
             try {
-                $request = Http::withHeaders($headers)->timeout($timeout);
+                $request = Http::withHeaders($headers)->timeout($timeout)->withOptions(['stream' => true]);
 
                 if ($body !== null) {
                     $request = $request->withBody($body, $headers['Content-Type'] ?? 'application/json');
                 }
 
                 $response = $request->send($method, $url);
+                $stream = $response->toPsrResponse()->getBody();
+                $data = '';
 
-                return [$response->status(), $response->body()];
+                while (! $stream->eof() && strlen($data) <= $maxBytes) {
+                    $data .= $stream->read(min(65536, $maxBytes + 1 - strlen($data)));
+                }
+
+                return [$response->status(), $data];
             } catch (Throwable $e) {
                 return [0, $e->getMessage()];
             }
