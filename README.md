@@ -19,6 +19,14 @@ Add `php artisan porro:report` to your deploy script so Porro hears about deploy
 
 Using Filament or Statamic? Install [`porro/filament-connector`](https://github.com/Porrodev/filament-connector) or [`porro/statamic-connector`](https://github.com/Porrodev/statamic-connector) instead. They include this package.
 
+## Site health, with or without Porro
+
+`Porro\Laravel\SiteHealth` checks the site from the inside, without a Porro account: PHP and Laravel versions past or close to the end of security support ([endoflife.date](https://endoflife.date), with a bundled copy for when it can't be reached), known security advisories in `composer.lock` ([Packagist's advisories API](https://packagist.org/apidoc#list-security-advisories), the one `composer audit` uses; only package names are sent), newer Laravel releases, whether the scheduler runs, debug mode in production, pending migrations, failed jobs, backups and `spatie/laravel-health` checks. Once the site is connected, it adds the site's open findings in Porro (uptime, SSL, the domain, the server's OS and packages) with links into Porro.
+
+The Statamic and Filament connectors show this as a panel in the control panel. Results are cached for five minutes; the public data behind them for between six hours and a day.
+
+When the site isn't connected, the scheduler still writes a heartbeat every `PORRO_INTERVAL` minutes so the panel can tell whether cron runs.
+
 ## What leaves a site
 
 - Laravel, PHP and package versions (names and versions from `composer.lock`; the list is only sent when the lock file changes)
@@ -26,6 +34,8 @@ Using Filament or Statamic? Install [`porro/filament-connector`](https://github.
 - Scheduler heartbeat, failed jobs in the last 24 hours, pending migrations
 - The database engine and version (e.g. MySQL 8.0.36, MariaDB 10.11.6), whether it's on the same server, and the provider if it's a known managed database. Never its host, name, user or password
 - Newest backup date from `spatie/laravel-backup` and check results from `spatie/laravel-health`, if installed
+
+Reading the site's findings back from Porro is a `GET` signed with the same key; it never sends anything about the site.
 
 ## What never does
 
