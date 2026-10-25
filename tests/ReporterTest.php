@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Database\SqlServerConnection;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -105,6 +106,42 @@ it('sends redacted first lines of messages when turned on', function () {
 
     expect($group['message'])->toBe('Order [number] for [email] failed')
         ->and($group['location'])->toBe('Api.php:7');
+});
+
+it('finds the throw location in paths with spaces and keeps paths out of messages', function () {
+    expect(LaravelCollector::exception('RuntimeException: Disk full in /var/www/my app/app/Jobs/Export.php:12'))
+        ->toBe(['class' => 'RuntimeException', 'message' => 'Disk full', 'location' => '/var/www/my app/app/Jobs/Export.php:12'])
+        ->and(LaravelCollector::exception('RuntimeException: Can\'t open C:\\Users\\Jane Doe\\in.csv in C:\\Program Files\\My App\\app\\Jobs\\Import.php:7'))
+        ->toBe(['class' => 'RuntimeException', 'message' => 'Can\'t open C:\\Users\\Jane Doe\\in.csv', 'location' => 'C:\\Program Files\\My App\\app\\Jobs\\Import.php:7'])
+        ->and(LaravelCollector::exception('LogicException in /srv/app/x.php:3'))
+        ->toBe(['class' => 'LogicException', 'message' => null, 'location' => '/srv/app/x.php:3'])
+        ->and(LaravelCollector::redact('Can\'t write /home/forge/my site/storage/x.log or C:\\Program Files\\App\\y.txt, see https://example.org/docs'))
+        ->toBe('Can\'t write [path] or [path] see https://example.org/docs');
+});
+
+it('sends the throw location and a path-free message for an app in a folder with spaces', function () {
+    failedJobsTable();
+    config(['porro.failed_jobs.messages' => true]);
+    $this->app->setBasePath('/var/www/my app');
+    DB::table('failed_jobs')->insert([
+        failedJob('App\\Jobs\\Export', 'RuntimeException: Can\'t open /var/www/my app/storage/export.csv in /var/www/my app/app/Jobs/Export.php:12', now()->subMinute()),
+    ]);
+
+    $group = app(Reporter::class)->build()->toArray()['health']['failed_jobs_groups'][0];
+
+    expect($group['location'])->toBe('app/Jobs/Export.php:12')
+        ->and($group['message'])->toBe('Can\'t open [path]')
+        ->and(json_encode($group))->not->toContain('/var/www');
+});
+
+it('reads the start of each payload and exception with SQL Server\'s SUBSTRING', function () {
+    $connection = new SqlServerConnection(fn () => throw new RuntimeException('not connected'), 'porro', '', ['name' => 'sqlsrv', 'driver' => 'sqlsrv']);
+
+    $sql = LaravelCollector::groupsQuery($connection->table('failed_jobs'))->toSql();
+
+    expect($sql)->toContain('SUBSTRING([payload], 1, 1000) as [payload_head]')
+        ->toContain('SUBSTRING([exception], 1, 2000) as [exception_head]')
+        ->toContain('top 500');
 });
 
 it('sends no groups when nothing failed', function () {

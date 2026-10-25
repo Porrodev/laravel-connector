@@ -94,16 +94,7 @@ class LaravelCollector implements Collector
                 return null;
             }
 
-            $rows = $table->where('failed_at', '>=', now()->subDay())
-                ->orderByDesc('failed_at')
-                ->limit(self::FAILED_JOBS_SCANNED)
-                ->get([
-                    'connection',
-                    'queue',
-                    'failed_at',
-                    DB::raw('substr(payload, 1, 1000) as payload_head'),
-                    DB::raw('substr(exception, 1, 2000) as exception_head'),
-                ]);
+            $rows = self::groupsQuery($table)->get();
 
             $messages = (bool) config('porro.failed_jobs.messages', false);
             $groups = [];
@@ -136,6 +127,28 @@ class LaravelCollector implements Collector
         } catch (Throwable) {
             return null;
         }
+    }
+
+    /**
+     * The newest failed jobs in the last day, reading only the start of
+     * each payload and exception. SQL Server spells substr SUBSTRING.
+     */
+    public static function groupsQuery(Builder $table): Builder
+    {
+        $grammar = $table->getGrammar();
+        $substr = $table->getConnection()->getDriverName() === 'sqlsrv' ? 'SUBSTRING' : 'substr';
+        $head = fn (string $column, int $length, string $as) => DB::raw("{$substr}({$grammar->wrap($column)}, 1, {$length}) as {$grammar->wrap($as)}");
+
+        return $table->where('failed_at', '>=', now()->subDay())
+            ->orderByDesc('failed_at')
+            ->limit(self::FAILED_JOBS_SCANNED)
+            ->select([
+                'connection',
+                'queue',
+                'failed_at',
+                $head('payload', 1000, 'payload_head'),
+                $head('exception', 2000, 'exception_head'),
+            ]);
     }
 
     private function failedJobsTable(): ?Builder
@@ -175,22 +188,34 @@ class LaravelCollector implements Collector
      */
     public static function exception(string $exception): array
     {
-        $head = explode("\nStack trace:", $exception, 2)[0];
+        $head = rtrim(explode("\nStack trace:", $exception, 2)[0]);
 
-        if (! preg_match('/^([A-Za-z_][\w\\\\]*)(?::\s?(.*?))?(?: in (\S+:\d+))?\s*$/s', $head, $match)) {
+        // An empty message leaves "Class in /path:12", with no colon.
+        if (! preg_match('/^([A-Za-z_][\w\\\\]*)(?:(?::\s?|\s)(.*))?$/s', $head, $match)) {
             return ['class' => null, 'message' => null, 'location' => null];
+        }
+
+        $message = $match[2] ?? '';
+        $location = null;
+
+        // PHP ends with " in <path>:<line>"; the path may hold spaces
+        // ("/var/www/my app/...", "C:\Program Files\..."), and the
+        // message may mention other paths, so the last one wins.
+        if (preg_match('/^(?:(.*)\s)?in ((?:[A-Za-z]:[\\\\\/]|\/)[^\n]*:\d+)$/s', $message, $in)) {
+            [$message, $location] = [rtrim($in[1]), $in[2]];
         }
 
         return [
             'class' => mb_substr($match[1], 0, 200),
-            'message' => ($match[2] ?? '') !== '' ? $match[2] : null,
-            'location' => ($match[3] ?? '') !== '' ? $match[3] : null,
+            'message' => $message !== '' ? $message : null,
+            'location' => $location,
         ];
     }
 
     /**
-     * The message's first line, at most 160 characters, with email addresses
-     * and runs of six or more digits (phone, card, order numbers) redacted.
+     * The message's first line, at most 160 characters, with email
+     * addresses, absolute file paths and runs of six or more digits
+     * (phone, card, order numbers) redacted.
      */
     public static function redact(?string $message): ?string
     {
@@ -201,6 +226,10 @@ class LaravelCollector implements Collector
         }
 
         $line = (string) preg_replace('/[^\s@<>"\'()]+@[^\s@<>"\'()]+\.[^\s@<>"\'()]+/u', '[email]', $line);
+        // A path runs to the next space, plus any later words that carry on
+        // with a slash: "/var/www/my app/x.php", "C:\Program Files\x.php".
+        // Not URLs: the slash after "https:" doesn't start one.
+        $line = (string) preg_replace('~(?:\b[A-Za-z]:[\\\\/]|(?<![\w:/.])/)[^\s\'"]*(?:\s+[^\s\'"]*[\\\\/][^\s\'"]*)*~', '[path]', $line);
         $line = (string) preg_replace('/\d[\d \-]{4,}\d/', '[number]', $line);
 
         return mb_strlen($line) > 160 ? rtrim(mb_substr($line, 0, 159)).'…' : $line;
@@ -211,9 +240,11 @@ class LaravelCollector implements Collector
      */
     private function relative(string $location): string
     {
-        $base = rtrim($this->app->basePath(), '/').'/';
+        $base = rtrim($this->app->basePath(), '/\\').DIRECTORY_SEPARATOR;
 
-        return str_starts_with($location, $base) ? substr($location, strlen($base)) : basename($location);
+        return str_starts_with($location, $base)
+            ? str_replace('\\', '/', substr($location, strlen($base)))
+            : (string) preg_replace('~^.*[\\\\/]~', '', $location);
     }
 
     private function pendingMigrations(): ?int
