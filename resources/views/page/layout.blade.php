@@ -119,7 +119,8 @@
             <p data-porro-body></p>
             <div class="actions">
                 <button class="btn" value="cancel" data-porro-cancel>{{ __('Cancel') }}</button>
-                <button class="btn solid-danger" value="ok" data-porro-ok data-danger="btn solid-danger" data-safe="btn primary"></button>
+                <button class="btn solid-danger" value="ok" data-porro-ok="danger"></button>
+                <button class="btn primary" value="ok" data-porro-ok="safe" hidden style="display: none"></button>
             </div>
         </form>
     </dialog>

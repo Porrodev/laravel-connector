@@ -3,8 +3,9 @@
     window.porroConfirm = true;
 
     // Forms carrying data-porro-confirm ask in the page's <dialog id="porro-confirm">
-    // first. The dialog's buttons carry their own classes for danger and safe
-    // actions, so each panel styles it its own way.
+    // first. The dialog has two confirm buttons, data-porro-ok="danger" and
+    // "safe", so each panel can draw them with its own components; the one
+    // that fits is shown and named for the action.
     document.addEventListener('submit', function (event) {
         var form = event.target;
         var dialog = document.getElementById('porro-confirm');
@@ -18,11 +19,14 @@
         event.preventDefault();
         event.stopPropagation();
 
-        var ok = dialog.querySelector('[data-porro-ok]');
         dialog.querySelector('[data-porro-title]').textContent = ask.title;
         dialog.querySelector('[data-porro-body]').textContent = ask.body;
-        ok.textContent = ask.button;
-        ok.className = ask.danger ? ok.dataset.danger : ok.dataset.safe;
+        dialog.querySelectorAll('[data-porro-ok]').forEach(function (ok) {
+            var show = ok.getAttribute('data-porro-ok') === (ask.danger ? 'danger' : 'safe');
+            ok.hidden = !show;
+            ok.style.display = show ? '' : 'none';
+            if (show) ok.textContent = ask.button;
+        });
 
         dialog.returnValue = '';
         dialog.onclose = function () {
