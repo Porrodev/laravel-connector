@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 - 2026-10-27
 
+- Requires `porro/php-core` ^0.3.0, from Packagist.
 - **The blocklist and safelist have their own pages** (`/porro/blocking/blocklist` and `/safelist`): search by IP (finds the ranges that cover it), range, reason or who added it; filter by manual, suggested, from config or expiring within 7 days; 50 a page, newest first. The Blocking page shows the newest 10 of each with a link to the rest. `Presenter::entries()` has the data for the other panels.
 - **Easier nginx setup:** the setup page has three numbered steps, each ticked off as servers finish it, copy buttons, and an example of the site's config with the include line highlighted. Behind Cloudflare, the deny file now carries Cloudflare's real IP lines itself (`PORRO_NGINX_REAL_IP`, on automatically), so the site's config needs one line and the ranges stay current.
 - **Always protected, explained:** on the Blocking page each protected list opens to show its addresses, why it can't be blocked and where it comes from. Google's and Bing's verified crawlers are now protected too. `PORRO_PROTECT_FORGE` and `PORRO_PROTECT_CRAWLERS` switch those lists off; Cloudflare and private ranges always stay. The IP details page says when an IP is protected and offers no block buttons.

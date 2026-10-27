@@ -7,8 +7,8 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    # porro/php-core comes from its GitHub repo while the PRs are stacked.
-    # Without a token Composer hits GitHub's anonymous API rate limit.
+    # Signed in with the workflow's token, a big matrix doesn't hit GitHub's
+    # anonymous API rate limit when Composer downloads packages.
     env:
       COMPOSER_AUTH: '{"github-oauth": {"github.com": "${{ secrets.GITHUB_TOKEN }}"}}'
     strategy:
