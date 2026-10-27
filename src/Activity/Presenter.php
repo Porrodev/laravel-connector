@@ -100,8 +100,12 @@ class Presenter
         $ranges = $this->activity->ranges()->ranges();
         $nginxPath = (string) config('porro.blocklist.nginx_path');
 
+        $cloudflare = app(CloudflareMode::class)->status();
+        $cloudflare['synced'] = $cloudflare['synced_at'] ? Carbon::createFromTimestamp((int) $cloudflare['synced_at'])->diffForHumans() : null;
+
         return [
             'failed' => $failed,
+            'cloudflare' => $cloudflare,
             'blocks' => array_map(fn (Entry $e) => $this->entry($e), $blocks),
             'safe' => array_map(fn (Entry $e) => $this->entry($e), $safe),
             'enforcement' => [
