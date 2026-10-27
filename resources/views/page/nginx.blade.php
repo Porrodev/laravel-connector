@@ -35,8 +35,7 @@
             <p style="margin-top: 0">{{ __('Inside server { }, above the first location. On Forge: open the site, then Edit Nginx Configuration from the Files menu, and save.') }}</p>
             <div class="copyable"><pre>{{ $enforcement['include'] }}</pre><button class="btn" type="button" data-porro-copy="{{ $enforcement['include'] }}">{{ __('Copy') }}</button></div>
             <p class="small muted" style="margin-bottom: 4px">{{ __('Where it goes, in a trimmed copy of this site’s config:') }}</p>
-            <pre class="example">@foreach ($example as $row)<span @class(['add' => $row['add']])>{{ $row['line'] }}@if ($row['add'])  <em>← {{ __('add this line') }}</em>@endif</span>
-@endforeach</pre>
+            <pre class="example">@foreach ($example as $row)<span @class(['add' => $row['add']])>{{ $row['line'] }}@if ($row['add'])  <em>← {{ __('add this line') }}</em>@endif</span>@endforeach</pre>
             @if ($realIpInFile)
                 <p class="small">{{ __('Behind Cloudflare: the file also carries Cloudflare’s real IP lines, so nginx turns away the visitor and not Cloudflare. Nothing else to add. If this config already sets real_ip_header, set PORRO_NGINX_REAL_IP=false.') }}</p>
             @elseif ($behindCloudflare)
