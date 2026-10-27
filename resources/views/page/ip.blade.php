@@ -40,7 +40,7 @@
     @if ($canManage && ! $details['blocked'] && ! $details['safelisted'])
         <div class="actions" style="justify-content: flex-start; flex-wrap: wrap">
             @foreach ([[__('Block permanently'), 0, $details['ip'], 'primary'], [__('Block 7 days'), 7, $details['ip'], ''], ...($details['range'] ? [[__('Block :range', ['range' => $details['range']]), 7, $details['range'], '']] : [])] as [$label, $days, $target, $style])
-                <form method="POST" action="{{ route('porro.block') }}" class="inline" onsubmit="return confirm({{ \Illuminate\Support\Js::from(\Porro\Laravel\Activity\Confirm::block($target, $days)) }})">
+                <form method="POST" action="{{ route('porro.block') }}" class="inline" data-porro-confirm="{{ \Porro\Laravel\Activity\Confirm::attribute(\Porro\Laravel\Activity\Confirm::block($target, $days)) }}">
                     @csrf
                     <input type="hidden" name="ip" value="{{ $target }}">
                     <input type="hidden" name="reason" value="{{ $details['reason'] }}">
@@ -49,7 +49,7 @@
                     <button class="btn {{ $style }}" type="submit">{{ $label }}</button>
                 </form>
             @endforeach
-            <form method="POST" action="{{ route('porro.safelist') }}" class="inline" onsubmit="return confirm({{ \Illuminate\Support\Js::from(\Porro\Laravel\Activity\Confirm::safelist($details['ip'])) }})">
+            <form method="POST" action="{{ route('porro.safelist') }}" class="inline" data-porro-confirm="{{ \Porro\Laravel\Activity\Confirm::attribute(\Porro\Laravel\Activity\Confirm::safelist($details['ip'])) }}">
                 @csrf
                 <input type="hidden" name="ip" value="{{ $details['ip'] }}">
                 <input type="hidden" name="label" value="{{ __('From the IP details page') }}">

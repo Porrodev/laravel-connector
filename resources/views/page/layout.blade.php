@@ -80,6 +80,13 @@
         .flash.error { color: var(--critical); border-color: var(--critical); }
         .flash.success { color: var(--clear); border-color: var(--clear); }
         .note { padding: 0 16px 14px; }
+        dialog.confirm { width: min(440px, calc(100vw - 32px)); padding: 0; border: 1px solid var(--hairline); border-radius: 12px; background: var(--surface); color: var(--body); box-shadow: 0 12px 40px rgb(0 0 0 / .18); }
+        dialog.confirm::backdrop { background: rgb(20 20 19 / .35); }
+        dialog.confirm form { display: grid; gap: 8px; padding: 20px; }
+        dialog.confirm h2 { margin: 0; color: var(--primary); font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
+        dialog.confirm p { margin: 0; }
+        dialog.confirm .actions { margin-top: 12px; }
+        .btn.solid-danger { background: var(--critical); border-color: var(--critical); color: #fff; }
         @media (max-width: 640px) { .bar { padding: 12px 16px; } .tabs { order: 3; flex-basis: 100%; } }
     </style>
 </head>
@@ -106,5 +113,16 @@
 
         @yield('content')
     </main>
+    <dialog id="porro-confirm" class="confirm" aria-labelledby="porro-confirm-title">
+        <form method="dialog">
+            <h2 id="porro-confirm-title" data-porro-title></h2>
+            <p data-porro-body></p>
+            <div class="actions">
+                <button class="btn" value="cancel" data-porro-cancel>{{ __('Cancel') }}</button>
+                <button class="btn solid-danger" value="ok" data-porro-ok data-danger="btn solid-danger" data-safe="btn primary"></button>
+            </div>
+        </form>
+    </dialog>
+    <script>{!! \Porro\Laravel\Activity\Confirm::script() !!}</script>
 </body>
 </html>
