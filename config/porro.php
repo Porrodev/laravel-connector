@@ -14,6 +14,39 @@ return [
     // Turn reporting off without uninstalling, e.g. on local machines.
     'enabled' => (bool) env('PORRO_ENABLED', true),
 
+    'activity' => [
+        // Record probes, failed logins, 404 bursts and form floods. Unset:
+        // production only, so a local copy's own traffic isn't counted.
+        'enabled' => env('PORRO_ACTIVITY'),
+
+        // When an IP is flagged: probes and failed logins per hour, 404s
+        // and form posts per 10 minutes. Defaults in Porro\Core\Activity\Recorder.
+        'thresholds' => [],
+
+        // Paths this app really serves that look like scanner paths.
+        'served' => [],
+
+        // POSTs that are never a form flood: app chatter, not forms.
+        'ignore_posts' => ['livewire/*', 'livewire-*/*', 'broadcasting/*', 'telescope/*', 'horizon/*', 'nova-api/*', '_debugbar/*'],
+    ],
+
+    'blocklist' => [
+        // Turn blocked IPs away with a 403 before the app runs.
+        'app' => (bool) env('PORRO_BLOCK_APP', true),
+
+        // Write a deny file for nginx to include (production only).
+        'nginx' => (bool) env('PORRO_BLOCK_NGINX', false),
+        'nginx_path' => env('PORRO_NGINX_PATH', storage_path('porro/nginx-blocklist.conf')),
+
+        // Never blocked or flagged, and can't be removed in the panel:
+        // ['203.0.113.7', ['cidr' => '198.51.100.0/24', 'note' => 'Office']]
+        'safelist' => [],
+
+        // Infrastructure that must always reach the site, on top of
+        // Cloudflare, Forge and private ranges.
+        'protected' => [],
+    ],
+
     'failed_jobs' => [
         // Send the first line of each failed job's exception message (cut to
         // 160 characters, emails and long numbers redacted). Off by default:
