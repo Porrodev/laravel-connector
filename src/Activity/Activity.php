@@ -83,9 +83,21 @@ class Activity
     /**
      * Protected ranges from the cache only. The sync fetches them.
      */
+    /**
+     * Protected lists switched off in porro.blocklist.protect.
+     *
+     * @return list<string>
+     */
+    public function switchedOff(): array
+    {
+        $protect = (array) config('porro.blocklist.protect', []);
+
+        return array_values(array_filter(ProtectedRanges::OPTIONAL, fn (string $source) => array_key_exists($source, $protect) && ! $protect[$source]));
+    }
+
     public function ranges(): ProtectedRanges
     {
-        return $this->ranges ??= new ProtectedRanges($this->cachedSources(), $this->strings('porro.blocklist.protected'));
+        return $this->ranges ??= new ProtectedRanges($this->cachedSources(), $this->strings('porro.blocklist.protected'), $this->switchedOff());
     }
 
     /**

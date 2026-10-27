@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Always protected, explained:** on the Blocking page each protected list opens to show its addresses, why it can't be blocked and where it comes from. Google's and Bing's verified crawlers are now protected too. `PORRO_PROTECT_FORGE` and `PORRO_PROTECT_CRAWLERS` switch those lists off; Cloudflare and private ranges always stay. The IP details page says when an IP is protected and offers no block buttons.
 - `PORRO_ENABLED` now defaults to off outside `APP_ENV=production`, so a local or staging copy with the live `.env` doesn't report as the live site. An explicit `PORRO_ENABLED=true` still reports from anywhere. `porro:status` and `porro:report` say why reporting is off.
 - **IP details** at `/porro/activity/{ip}`, linked from Activity.
   - **Shows:** country, network (Cloudflare Intel, falling back to Radar once Intel is refused), confirmed reverse DNS, and badges for Tor, Spamhaus DROP, hosting, fake crawlers and research scanners.

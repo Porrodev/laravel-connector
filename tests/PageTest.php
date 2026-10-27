@@ -136,6 +136,25 @@ describe('pages', function () {
             ->and(DB::table('porro_blocklist')->count())->toBe(0);
     });
 
+    it('opens each always-protected list to show its addresses and why', function () {
+        $this->get('/porro/blocking')
+            ->assertSeeInOrder(['Always protected', 'Cloudflare', 'Laravel Forge', 'Forge health checks', 'Search engine crawlers', 'Private and reserved'])
+            ->assertSee('<details class="protected">', false)
+            ->assertSee('drop the site from search')
+            ->assertSee('developers.google.com/static/crawling/ipranges/common-crawlers.json')
+            ->assertSee('173.245.48.0/20')
+            ->assertSee('PORRO_PROTECT_CRAWLERS=false');
+    });
+
+    it('lets a site switch off Forge and crawler protection, but not Cloudflare', function () {
+        config(['porro.blocklist.protect' => ['forge' => false, 'forge_health' => false, 'crawlers' => false, 'cloudflare' => false]]);
+        $this->app->forgetInstance(Activity::class);
+
+        $this->get('/porro/blocking')->assertSee('Switched off')->assertSee('Switched off with PORRO_PROTECT_FORGE=false');
+        $this->from('/porro/blocking')->post('/porro/blocking/block', ['ip' => '159.203.150.232'])->assertSessionHas('success');
+        $this->from('/porro/blocking')->post('/porro/blocking/block', ['ip' => '104.16.1.1'])->assertSessionHas('error');
+    });
+
     it('prefills the safelist from a flagged IP', function () {
         $this->get('/porro/blocking?safelist=81.2.69.142')->assertSee('value="81.2.69.142"', false);
     });

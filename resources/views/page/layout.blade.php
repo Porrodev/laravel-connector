@@ -76,6 +76,11 @@
         form.inline { display: inline; margin: 0; }
         .form { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 16px 14px; }
         input[type=text], select { font: 13px var(--mono); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--control); background: var(--surface); color: var(--primary); min-width: 0; }
+        details.protected summary { cursor: pointer; list-style: none; }
+        details.protected summary::-webkit-details-marker { display: none; }
+        details.protected summary::before { content: '›'; color: var(--muted); display: inline-block; transition: transform .15s; }
+        details.protected[open] summary::before { transform: rotate(90deg); }
+        .ranges { display: grid; grid-template-columns: repeat(auto-fill, minmax(24ch, 1fr)); gap: 2px 16px; max-height: 240px; overflow-y: auto; padding: 10px 14px; border-radius: 8px; background: var(--raised); color: var(--primary); font: 12px/1.6 var(--mono); }
         .flash { padding: 10px 14px; border-radius: 8px; border: 1px solid; }
         .flash.error { color: var(--critical); border-color: var(--critical); }
         .flash.success { color: var(--clear); border-color: var(--clear); }
