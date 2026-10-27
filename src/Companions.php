@@ -12,10 +12,10 @@ use Composer\InstalledVersions;
  */
 final class Companions
 {
-    /** Platform package => the Porro connector for it. */
+    /** Platform package => the Porro connector for it, the platform's name, what it adds. */
     public const CONNECTORS = [
-        'filament/filament' => ['porro/filament-connector', 'Filament', 'Site health and Blocking pages in the panel'],
-        'statamic/cms' => ['porro/statamic-connector', 'Statamic', 'a Porro section in the control panel'],
+        'filament/filament' => ['porro/filament-connector', 'Filament', 'Site health and Blocking pages in the panel.'],
+        'statamic/cms' => ['porro/statamic-connector', 'Statamic', 'a Porro section in the control panel. It also lets you run these commands as `php please porro:connect` and `php please porro:cron`.'],
     ];
 
     /** @var Closure(string): bool */
@@ -38,7 +38,7 @@ final class Companions
 
         foreach (self::CONNECTORS as $platform => [$connector, $name, $adds]) {
             if (($this->installed)($platform) && ! ($this->installed)($connector)) {
-                $hints[] = "This site uses {$name}. Run `composer require {$connector}` for {$adds}.";
+                $hints[] = "This site uses {$name}. Run `composer require {$connector}` for {$adds}";
             }
         }
 

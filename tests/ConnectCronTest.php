@@ -149,5 +149,6 @@ it('suggests the Statamic connector after connecting a Statamic site', function 
 
     $this->artisan('porro:connect', ['key' => siteKey()['token'], '--no-cron' => true])
         ->expectsOutputToContain('composer require porro/statamic-connector')
+        ->expectsOutputToContain('php please porro:connect')
         ->assertSuccessful();
 });
