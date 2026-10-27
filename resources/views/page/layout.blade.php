@@ -80,6 +80,11 @@
         .flash.error { color: var(--critical); border-color: var(--critical); }
         .flash.success { color: var(--clear); border-color: var(--clear); }
         .note { padding: 0 16px 14px; }
+        .copyable { display: flex; gap: 8px; align-items: flex-start; }
+        .copyable pre { flex: 1; min-width: 0; margin-top: 0; }
+        pre.example span { display: block; min-height: 1.6em; }
+        pre.example .add { background: rgb(191 232 74 / .28); margin: 0 -14px; padding: 0 14px; font-weight: 600; }
+        pre.example em { font-style: normal; font-weight: 400; color: var(--muted); }
         dialog.confirm { width: min(440px, calc(100vw - 32px)); padding: 0; border: 1px solid var(--hairline); border-radius: 12px; background: var(--surface); color: var(--body); box-shadow: 0 12px 40px rgb(0 0 0 / .18); }
         dialog.confirm::backdrop { background: rgb(20 20 19 / .35); }
         dialog.confirm form { display: grid; gap: 8px; padding: 20px; }

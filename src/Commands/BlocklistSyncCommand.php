@@ -33,7 +33,8 @@ class BlocklistSyncCommand extends Command
         $path = (string) config('porro.blocklist.nginx_path');
 
         try {
-            $changed = NginxBlocklist::write($path, NginxBlocklist::render($activity->blocklist()->blocks()));
+            $realIp = $activity->nginxRealIp() ? NginxBlocklist::realIp($activity->ranges()) : null;
+            $changed = NginxBlocklist::write($path, NginxBlocklist::render($activity->blocklist()->blocks(), null, $realIp));
         } catch (Throwable $e) {
             $this->components->error($e->getMessage());
 

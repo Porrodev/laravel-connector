@@ -37,4 +37,15 @@
         dialog.showModal();
         dialog.querySelector('[data-porro-cancel]').focus();
     }, true);
+
+    // Buttons carrying data-porro-copy put that text on the clipboard.
+    document.addEventListener('click', function (event) {
+        var button = event.target.closest && event.target.closest('[data-porro-copy]');
+        if (!button || !navigator.clipboard) return;
+        navigator.clipboard.writeText(button.getAttribute('data-porro-copy')).then(function () {
+            var label = button.textContent;
+            button.textContent = '✓';
+            setTimeout(function () { button.textContent = label; }, 1500);
+        });
+    });
 })();

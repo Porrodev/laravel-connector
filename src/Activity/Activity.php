@@ -64,6 +64,25 @@ class Activity
         return $this->app->environment('production', 'prod', 'live');
     }
 
+    /** Set when someone opens the nginx setup page through Cloudflare. */
+    public const BEHIND_CLOUDFLARE = 'porro:activity:behind-cloudflare';
+
+    /**
+     * Whether the nginx file carries Cloudflare's real IP lines:
+     * PORRO_NGINX_REAL_IP when set, otherwise when the site is behind
+     * Cloudflare (a Cloudflare token, or the setup page seen through it).
+     */
+    public function nginxRealIp(): bool
+    {
+        $setting = config('porro.blocklist.nginx_real_ip');
+
+        if ($setting !== null && $setting !== '') {
+            return filter_var($setting, FILTER_VALIDATE_BOOLEAN);
+        }
+
+        return (bool) config('porro.blocklist.cloudflare_token') || (bool) Cache::get(self::BEHIND_CLOUDFLARE);
+    }
+
     /**
      * Whether requests are recorded: PORRO_ACTIVITY when set, otherwise
      * only in production.

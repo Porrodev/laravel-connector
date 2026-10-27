@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Easier nginx setup:** the setup page has three numbered steps, each ticked off as servers finish it, copy buttons, and an example of the site's config with the include line highlighted. Behind Cloudflare, the deny file now carries Cloudflare's real IP lines itself (`PORRO_NGINX_REAL_IP`, on automatically), so the site's config needs one line and the ranges stay current.
 - `PORRO_ENABLED` now defaults to off outside `APP_ENV=production`, so a local or staging copy with the live `.env` doesn't report as the live site. An explicit `PORRO_ENABLED=true` still reports from anywhere. `porro:status` and `porro:report` say why reporting is off.
 - **IP details** at `/porro/activity/{ip}`, linked from Activity.
   - **Shows:** country, network (Cloudflare Intel, falling back to Radar once Intel is refused), confirmed reverse DNS, and badges for Tor, Spamhaus DROP, hosting, fake crawlers and research scanners.
