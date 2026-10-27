@@ -56,13 +56,7 @@ class PageController extends Controller
      */
     public function nginx(Request $request): View
     {
-        $blocking = $this->presenter->blocking();
-
-        return $this->page($request, 'nginx', [
-            'enforcement' => $blocking['enforcement'],
-            'behindCloudflare' => $blocking['cloudflare']['configured'] || $this->activity->ranges()->isCloudflare((string) $request->server('REMOTE_ADDR')),
-            'sharedCache' => ! in_array(config('cache.default'), ['file', 'array', 'apc'], true),
-        ]);
+        return $this->page($request, 'nginx', $this->presenter->nginx((string) $request->server('REMOTE_ADDR')));
     }
 
     public function refresh(): RedirectResponse

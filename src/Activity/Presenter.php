@@ -127,6 +127,24 @@ class Presenter
     }
 
     /**
+     * The nginx setup page: enforcement and servers, whether the site is
+     * behind Cloudflare (so the real IP lines come first), and whether the
+     * cache is shared, without which only this server can be listed.
+     *
+     * @return array<string, mixed>
+     */
+    public function nginx(?string $remoteAddr = null): array
+    {
+        $blocking = $this->blocking();
+
+        return [
+            'enforcement' => $blocking['enforcement'],
+            'behindCloudflare' => $blocking['cloudflare']['configured'] || ($remoteAddr !== null && $this->activity->ranges()->isCloudflare($remoteAddr)),
+            'sharedCache' => ! in_array(config('cache.default'), ['file', 'array', 'apc'], true),
+        ];
+    }
+
+    /**
      * "🇩🇪 DE", or "Tor" for Cloudflare's T1. Null when unknown.
      *
      * @return array{code: string, label: string}|null
