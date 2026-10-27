@@ -31,6 +31,12 @@
         </div>
     </div>
 
+    @if ($details['crawler'])
+        <div class="flash {{ $details['crawler']['real'] ? 'success' : 'error' }}" role="note">
+            <strong>{{ $details['crawler']['title'] }}.</strong> {{ $details['crawler']['body'] }}
+        </div>
+    @endif
+
     @if ($canManage && ! $details['blocked'] && ! $details['safelisted'])
         <div class="actions" style="justify-content: flex-start; flex-wrap: wrap">
             @foreach ([[__('Block permanently'), 0, $details['ip'], 'primary'], [__('Block 7 days'), 7, $details['ip'], ''], ...($details['range'] ? [[__('Block :range', ['range' => $details['range']]), 7, $details['range'], '']] : [])] as [$label, $days, $target, $style])

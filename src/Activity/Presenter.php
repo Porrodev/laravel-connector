@@ -176,7 +176,14 @@ class Presenter
         }
 
         $details = $this->activity->details($ip, $flagged?->userAgent);
+        $crawler = $this->crawler($details);
         $badges = array_values(array_map(fn ($b) => (self::BADGES[$b] ?? ['label' => $b, 'tone' => 'neutral']) + ['key' => $b], $details['badges']));
+
+        foreach ($badges as $i => $badge) {
+            if ($badge['key'] === IpDetails::FAKE_CRAWLER && $crawler) {
+                $badges[$i]['label'] = __('Fake :crawler', ['crawler' => $crawler['name']]);
+            }
+        }
 
         foreach ($details['risks'] as $risk) {
             $badges[] = ['key' => 'risk', 'label' => "Cloudflare: {$risk}", 'tone' => 'danger'];
@@ -197,9 +204,9 @@ class Presenter
                     default => null,
                 },
                 'Hostname' => $details['hostname'] ? $details['hostname'].' · '.__('verified') : null,
-                'Claims to be' => $details['crawler'] ? ucfirst($details['crawler']).(in_array(IpDetails::FAKE_CRAWLER, $details['badges'], true) ? ' · '.__('not really') : ' · '.__('verified')) : null,
                 'User agent' => $flagged?->userAgent,
             ]),
+            'crawler' => $crawler,
             'activity' => $flagged ? $this->did($flagged) : null,
             'blocked' => $this->isBlocked($ip),
             'safelisted' => $this->activity->blocklist()->isSafelisted($ip),
@@ -211,6 +218,44 @@ class Presenter
             'sources' => $details['sources'],
             'fetched' => Carbon::createFromTimestamp((int) $details['fetched_at'])->diffForHumans(),
             'attribution' => in_array('DB-IP', $details['sources'], true) ? ['text' => Countries::ATTRIBUTION, 'url' => Countries::ATTRIBUTION_URL] : null,
+        ];
+    }
+
+    /** How each crawler is named, and where a real one's addresses resolve. */
+    private const CRAWLER_NAMES = ['googlebot' => 'Googlebot', 'bingbot' => 'Bingbot', 'applebot' => 'Applebot', 'yandexbot' => 'YandexBot'];
+
+    /**
+     * When the IP says it's a search engine's crawler: whether that's true,
+     * in words, with what blocking it would mean.
+     *
+     * @param  array<string, mixed>  $details
+     * @return array{name: string, real: bool, title: string, body: string}|null
+     */
+    private function crawler(array $details): ?array
+    {
+        $key = $details['crawler'] ?? null;
+
+        if (! $key) {
+            return null;
+        }
+
+        $name = self::CRAWLER_NAMES[$key] ?? ucfirst($key);
+        $domain = IpDetails::CRAWLERS[$key][0] ?? null;
+        $real = ! in_array(IpDetails::FAKE_CRAWLER, $details['badges'], true);
+
+        return $real ? [
+            'name' => $name,
+            'real' => true,
+            'title' => __('Real :crawler', ['crawler' => $name]),
+            'body' => __('This address belongs to the search engine: it resolves to :host. Blocking it would stop the site being crawled, so leave it unless you mean to.', ['host' => $details['hostname']]),
+        ] : [
+            'name' => $name,
+            'real' => false,
+            'title' => __('Pretending to be :crawler', ['crawler' => $name]),
+            'body' => ($details['hostname']
+                ? __('Its user agent says :crawler, but this address isn’t the search engine’s: real :crawler addresses resolve to :domain, this one is :host.', ['crawler' => $name, 'domain' => $domain, 'host' => $details['hostname']])
+                : __('Its user agent says :crawler, but this address isn’t the search engine’s: real :crawler addresses resolve to :domain, and this one has no matching name.', ['crawler' => $name, 'domain' => $domain]))
+                .' '.__('Scanners do this because many sites let crawlers through. Blocking it won’t affect search.'),
         ];
     }
 

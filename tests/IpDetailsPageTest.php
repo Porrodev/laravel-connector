@@ -42,8 +42,10 @@ it('shows who it is, what it did and what to do about it', function () {
         ->assertSee('185.220.101.4')
         ->assertSee('🇩🇪 DE')
         ->assertSee('Tor exit')
-        ->assertSee('Fake crawler')
-        ->assertSee('Googlebot · not really')
+        ->assertSee('Fake Googlebot')
+        ->assertSee('Pretending to be Googlebot')
+        ->assertSee('real Googlebot addresses resolve to googlebot.com')
+        ->assertSee('Blocking it won’t affect search')
         ->assertSee('/wp-login.php')
         ->assertSee('Block permanently')
         ->assertSee('Tor exit list · Spamhaus DROP');
@@ -99,6 +101,20 @@ it('needs managePorroBlocklist to send an IP to AbuseIPDB', function () {
 
     $this->post('/porro/activity/185.220.101.4/reputation')->assertForbidden();
     $this->get('/porro/activity/185.220.101.4')->assertDontSee('Check on AbuseIPDB')->assertDontSee('Block permanently');
+});
+
+it('says plainly when a crawler is real, and what blocking it would mean', function () {
+    $this->app->instance('porro.reverse-dns', fn () => 'crawl-66-249-66-1.googlebot.com');
+    // Googlebot following old links to scanner-looking paths, enough to be flagged.
+    foreach (['/.env.example', '/backup.zip', '/wp-login.php'] as $path) {
+        app(Activity::class)->recorder()->record('66.249.66.1', Recorder::PROBE, 'GET', $path, 404, userAgent: 'Mozilla/5.0 (compatible; Googlebot/2.1)');
+    }
+
+    $this->get('/porro/activity/66.249.66.1')
+        ->assertSee('Real Googlebot')
+        ->assertSee('it resolves to crawl-66-249-66-1.googlebot.com')
+        ->assertSee('Blocking it would stop the site being crawled')
+        ->assertDontSee('Fake Googlebot');
 });
 
 it('says when an IP did nothing here, and 404s on nonsense', function () {
