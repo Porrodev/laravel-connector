@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **The `/porro` page**, like Horizon, with Site health, Activity and Blocking tabs.
+  - **Access:** open in `local`. Elsewhere it's closed unless a `viewPorro` gate allows the user, and guests never get in. A `managePorroBlocklist` gate can narrow who changes the lists.
+  - **Statamic and Filament:** it steps aside when their connector is installed (`PORRO_PAGE` overrides).
+  - **Assets:** one Blade layout with inline styles, so nothing to publish or build.
+- `Porro\Laravel\Activity\Presenter` shapes activity and blocklist data for a page. Statamic and Filament can share it.
 - Suspicious activity and blocking, on `porro/php-core` 0.3.
   - **Migration:** run `php artisan migrate` for the `porro_blocklist` and `porro_safelist` tables.
   - **Watching:** global middleware records scanner probes, 404 bursts and form floods (production only unless `PORRO_ACTIVITY=true`). Failed logins are counted on any guard.

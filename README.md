@@ -27,6 +27,30 @@ The Statamic and Filament connectors show this as a panel in the control panel. 
 
 When the site isn't connected, the scheduler still writes a heartbeat every `PORRO_INTERVAL` minutes so the panel can tell whether cron runs.
 
+## The /porro page
+
+Like Horizon's dashboard, but for the site's health. Visit `/porro` for three tabs:
+
+- **Site health:** the checks above, and Porro's findings once connected
+- **Activity:** suspicious requests in the last 24 hours, with buttons to block or safelist each IP
+- **Blocking:** the blocklist and safelist, and the ranges that can never be blocked
+
+**Locked down like Horizon.** In the `local` environment anyone can open it. Anywhere else it returns 403 unless your app defines a `viewPorro` gate and the gate allows the signed-in user. Guests never get in. With no gate, production is closed to everyone. Define the gate in a service provider's `boot()`:
+
+```php
+use Illuminate\Support\Facades\Gate;
+
+Gate::define('viewPorro', fn (User $user) => in_array($user->email, ['ops@youragency.com']));
+```
+
+Changing the lists also checks a `managePorroBlocklist` gate when you define one. Without it, anyone who can view the page can change the lists.
+
+- **Path:** set `PORRO_PATH` to move it.
+- **Middleware:** set `porro.page.middleware` to change it (default `web`).
+- **Turning it off:** `PORRO_PAGE=false`.
+- **Statamic and Filament sites:** the page turns itself off, because their connectors show the same things in the control panel. Set `PORRO_PAGE=true` to have both.
+- **Assets:** everything is in one Blade layout with inline styles, so there's nothing to publish or build.
+
 ## Suspicious activity and blocking
 
 Works without a Porro account. IP addresses stay on the site.
@@ -85,6 +109,8 @@ Content, customer or user data, environment values or secrets. Run `php artisan 
 | `PORRO_BLOCK_APP` | `true` | Turn blocked IPs away with a 403 |
 | `PORRO_BLOCK_NGINX` | `false` | Write the nginx deny file every minute |
 | `PORRO_NGINX_PATH` | `storage/porro/nginx-blocklist.conf` | Where the deny file goes |
+| `PORRO_PAGE` | unset | The /porro page: unset means on, except alongside the Statamic or Filament connector |
+| `PORRO_PATH` | `porro` | Where the page lives |
 
 The safelist, extra protected ranges, thresholds and the paths your app really serves go in `config/porro.php` under `activity` and `blocklist`.
 
