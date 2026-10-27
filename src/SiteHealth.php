@@ -57,6 +57,15 @@ class SiteHealth
     }
 
     /**
+     * Drops the cached result, so the next view shows a change straight
+     * away (e.g. after blocking an IP) without fetching anything again.
+     */
+    public function forget(): void
+    {
+        Cache::forget(self::CACHE_KEY);
+    }
+
+    /**
      * The last result, without running any checks: for places that must
      * never wait on the network, like a dashboard widget.
      *
