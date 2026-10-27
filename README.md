@@ -126,6 +126,8 @@ Content, customer or user data, environment values or secrets. Run `php artisan 
 | `PORRO_ACTIVITY` | unset | Record suspicious activity; unset means production only |
 | `PORRO_BLOCK_APP` | `true` | Turn blocked IPs away with a 403 |
 | `PORRO_BLOCK_NGINX` | `false` | Write the nginx deny file every minute |
+| `PORRO_PROTECT_FORGE` | `true` | Never block Laravel Forge's servers and health checks. Set `false` if the site isn't on Forge |
+| `PORRO_PROTECT_CRAWLERS` | `true` | Never block Google's and Bing's verified crawlers |
 | `PORRO_NGINX_PATH` | `storage/porro/nginx-blocklist.conf` | Where the deny file goes |
 | `PORRO_NGINX_REAL_IP` | on behind Cloudflare | Put Cloudflare's real IP lines in the deny file. Set `false` if your nginx config already has `real_ip_header` |
 | `PORRO_CLOUDFLARE_TOKEN` | | Cloudflare API token for WAF mode |

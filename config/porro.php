@@ -75,8 +75,16 @@ return [
         'safelist' => [],
 
         // Infrastructure that must always reach the site, on top of
-        // Cloudflare, Forge and private ranges.
+        // Cloudflare, Forge, search crawlers and private ranges.
         'protected' => [],
+
+        // Protected lists a site can switch off: not on Forge, or happy to
+        // block a crawler. Cloudflare and private ranges always stay.
+        'protect' => [
+            'forge' => (bool) env('PORRO_PROTECT_FORGE', true),
+            'forge_health' => (bool) env('PORRO_PROTECT_FORGE', true),
+            'crawlers' => (bool) env('PORRO_PROTECT_CRAWLERS', true),
+        ],
     ],
 
     'failed_jobs' => [
