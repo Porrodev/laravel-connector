@@ -56,7 +56,9 @@ Content, customer or user data, environment values or secrets. Run `php artisan 
 |---|---|---|
 | `PORRO_KEY` | | The site key |
 | `PORRO_INTERVAL` | `15` | Minutes between reports |
-| `PORRO_ENABLED` | `true` | Turn reporting off, e.g. on staging |
+| `PORRO_ENABLED` | unset | `true` or `false` to force reporting on or off |
+
+With `PORRO_ENABLED` unset, only `APP_ENV=production` reports. A local or staging copy running with the live `.env` stays quiet, so it can't overwrite the live site's state in Porro. Set `PORRO_ENABLED=true` to report from another environment on purpose. `porro:status` shows whether reporting is on and why.
 
 ## Developing
 

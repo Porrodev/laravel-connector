@@ -34,7 +34,7 @@ class PorroServiceProvider extends ServiceProvider
         $this->commands([ConnectCommand::class, CronCommand::class, ReportCommand::class, StatusCommand::class]);
 
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
-            if (! config('porro.enabled')) {
+            if (! Reporting::enabled()) {
                 return;
             }
 

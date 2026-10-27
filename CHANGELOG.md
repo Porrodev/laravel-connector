@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `PORRO_ENABLED` now defaults to off outside `APP_ENV=production`, so a local or staging copy with the live `.env` doesn't report as the live site. An explicit `PORRO_ENABLED=true` still reports from anywhere. `porro:status` and `porro:report` say why reporting is off.
+
 ## 0.2.1
 
 - Requires `porro/php-core` 0.2.1: requests to Porro are signed for their method and path, and the panel only hides local issues Porro has actually raised.

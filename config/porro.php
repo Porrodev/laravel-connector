@@ -11,7 +11,8 @@ return [
     // Minutes between reports. Porro raises "connector silent" after two missed reports.
     'interval' => (int) env('PORRO_INTERVAL', 15),
 
-    // Turn reporting off without uninstalling, e.g. on local machines.
-    'enabled' => (bool) env('PORRO_ENABLED', true),
+    // Left unset, only the production environment reports, so a local or
+    // staging copy with the live .env stays quiet. Set true or false to override.
+    'enabled' => env('PORRO_ENABLED'),
 
 ];

@@ -34,6 +34,9 @@ abstract class TestCase extends Orchestra
         $app['config']->set('cache.default', 'array');
         $app['config']->set('porro.url', 'https://porro.test');
 
+        // Testbench runs as "testing", which would otherwise turn reporting off.
+        $app['config']->set('porro.enabled', true);
+
         // Never touch the real crontab of whoever runs the tests.
         $app->instance(CrontabIo::class, new FakeCrontab(works: false));
     }
