@@ -7,6 +7,10 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # porro/php-core comes from its GitHub repo while the PRs are stacked.
+    # Without a token Composer hits GitHub's anonymous API rate limit.
+    env:
+      COMPOSER_AUTH: '{"github-oauth": {"github.com": "${{ secrets.GITHUB_TOKEN }}"}}'
     strategy:
       fail-fast: false
       matrix:
