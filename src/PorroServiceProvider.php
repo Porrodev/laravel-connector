@@ -66,7 +66,7 @@ class PorroServiceProvider extends ServiceProvider
         });
 
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
-            if (! config('porro.enabled')) {
+            if (! Reporting::enabled()) {
                 return;
             }
 

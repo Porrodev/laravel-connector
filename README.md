@@ -121,7 +121,7 @@ Content, customer or user data, environment values or secrets. Run `php artisan 
 |---|---|---|
 | `PORRO_KEY` | | The site key |
 | `PORRO_INTERVAL` | `15` | Minutes between reports |
-| `PORRO_ENABLED` | `true` | Turn reporting off, e.g. on staging |
+| `PORRO_ENABLED` | unset | `true` or `false` to force reporting on or off |
 | `PORRO_FAILED_JOB_MESSAGES` | `false` | Send the first line of failed jobs' exception messages, redacted |
 | `PORRO_ACTIVITY` | unset | Record suspicious activity; unset means production only |
 | `PORRO_BLOCK_APP` | `true` | Turn blocked IPs away with a 403 |
@@ -134,6 +134,8 @@ Content, customer or user data, environment values or secrets. Run `php artisan 
 | `PORRO_PATH` | `porro` | Where the page lives |
 
 The safelist, extra protected ranges, thresholds and the paths your app really serves go in `config/porro.php` under `activity` and `blocklist`.
+
+With `PORRO_ENABLED` unset, only `APP_ENV=production` (or `prod`, `live`) reports. A local or staging copy running with the live `.env` stays quiet, so it can't overwrite the live site's state in Porro. Set `PORRO_ENABLED=true` to report from another environment on purpose. `porro:status` shows whether reporting is on and why.
 
 ## Developing
 

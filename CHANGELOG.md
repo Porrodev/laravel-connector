@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `PORRO_ENABLED` now defaults to off outside `APP_ENV=production`, so a local or staging copy with the live `.env` doesn't report as the live site. An explicit `PORRO_ENABLED=true` still reports from anywhere. `porro:status` and `porro:report` say why reporting is off.
 - **IP details** at `/porro/activity/{ip}`, linked from Activity.
   - **Shows:** country, network (Cloudflare Intel, falling back to Radar once Intel is refused), confirmed reverse DNS, and badges for Tor, Spamhaus DROP, hosting, fake crawlers and research scanners.
   - **Also:** the last 48 hours here, block and safelist actions, and an AbuseIPDB check only on click.

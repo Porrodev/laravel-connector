@@ -7,6 +7,7 @@ use InvalidArgumentException;
 use Porro\Laravel\Activity\Activity;
 use Porro\Laravel\Heartbeat;
 use Porro\Laravel\Reporter;
+use Porro\Laravel\Reporting;
 
 class ReportCommand extends Command
 {
@@ -19,8 +20,8 @@ class ReportCommand extends Command
 
     public function handle(Reporter $reporter): int
     {
-        if (! config('porro.enabled')) {
-            $this->components->info('Porro reporting is turned off (PORRO_ENABLED=false).');
+        if ($reason = Reporting::offReason()) {
+            $this->components->info("Porro reporting is off: {$reason}.");
 
             return self::SUCCESS;
         }

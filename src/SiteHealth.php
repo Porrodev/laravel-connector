@@ -113,7 +113,7 @@ class SiteHealth
                 'connect' => $this->cli().' porro:connect <site key>',
                 'cron' => $this->cli().' porro:cron',
             ],
-            'enabled' => (bool) config('porro.enabled'),
+            'enabled' => Reporting::enabled(),
             'activity' => $activity,
         ];
     }
@@ -176,7 +176,7 @@ class SiteHealth
     {
         $key = config('porro.key');
 
-        if (! is_string($key) || $key === '' || ! config('porro.enabled')) {
+        if (! is_string($key) || $key === '' || ! Reporting::enabled()) {
             return null;
         }
 

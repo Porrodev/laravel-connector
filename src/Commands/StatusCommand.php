@@ -4,6 +4,7 @@ namespace Porro\Laravel\Commands;
 
 use Illuminate\Console\Command;
 use Porro\Laravel\Reporter;
+use Porro\Laravel\Reporting;
 
 class StatusCommand extends Command
 {
@@ -41,6 +42,7 @@ class StatusCommand extends Command
 
         $this->components->twoColumnDetail('composer.lock', $report['lock']['hash'] ?? 'not found');
         $this->components->twoColumnDetail('Key set', config('porro.key') ? 'yes' : 'no');
+        $this->components->twoColumnDetail('Reporting', ($reason = Reporting::offReason()) ? "off: {$reason}" : 'on');
 
         return self::SUCCESS;
     }
