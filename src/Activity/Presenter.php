@@ -3,6 +3,7 @@
 namespace Porro\Laravel\Activity;
 
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Porro\Core\Activity\Cidr;
 use Porro\Core\Activity\Countries;
 use Porro\Core\Activity\Entry;
@@ -147,12 +148,57 @@ class Presenter
     public function nginx(?string $remoteAddr = null): array
     {
         $blocking = $this->blocking();
+        $enforcement = $blocking['enforcement'];
+
+        // Seen through Cloudflare: remember it, so the deny file carries the
+        // real IP lines without anyone having to set anything.
+        if ($remoteAddr !== null && $this->activity->ranges()->isCloudflare($remoteAddr)) {
+            Cache::forever(Activity::BEHIND_CLOUDFLARE, true);
+        }
+
+        $servers = $enforcement['servers'];
+        $count = static fn (array $states) => count(array_filter($servers, fn ($s) => in_array($s['state'], $states, true)));
 
         return [
-            'enforcement' => $blocking['enforcement'],
+            'enforcement' => $enforcement,
             'behindCloudflare' => $blocking['cloudflare']['configured'] || ($remoteAddr !== null && $this->activity->ranges()->isCloudflare($remoteAddr)),
+            'realIpInFile' => $this->activity->nginxRealIp(),
             'sharedCache' => ! in_array(config('cache.default'), ['file', 'array', 'apc'], true),
+            'example' => self::nginxExample($enforcement['include']),
+            'progress' => [
+                'servers' => count($servers),
+                'included' => $count([NginxStatus::WAITING, NginxStatus::UNCONFIRMED, NginxStatus::LOADED]),
+                'loaded' => $count([NginxStatus::LOADED]),
+            ],
         ];
+    }
+
+    /**
+     * A trimmed version of the site's nginx config, to show where the
+     * include goes: inside server { }, above the first location. Each line
+     * says whether it's the one to add.
+     *
+     * @return list<array{line: string, add: bool}>
+     */
+    public static function nginxExample(string $include): array
+    {
+        $host = parse_url((string) config('app.url'), PHP_URL_HOST) ?: 'example.com';
+        $lines = [
+            ['server {', false],
+            ['    listen 443 ssl;', false],
+            ["    server_name {$host};", false],
+            ['    root '.public_path().';', false],
+            ['', false],
+            ["    {$include}", true],
+            ['', false],
+            ['    location / {', false],
+            ['        try_files $uri $uri/ /index.php?$query_string;', false],
+            ['    }', false],
+            ['    # … the rest of the config stays as it is', false],
+            ['}', false],
+        ];
+
+        return array_map(fn ($l) => ['line' => $l[0], 'add' => $l[1]], $lines);
     }
 
     /**

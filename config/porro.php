@@ -54,6 +54,11 @@ return [
         'nginx' => (bool) env('PORRO_BLOCK_NGINX', false),
         'nginx_path' => env('PORRO_NGINX_PATH', storage_path('porro/nginx-blocklist.conf')),
 
+        // Put Cloudflare's real IP lines in the same file, so nginx denies the
+        // visitor rather than Cloudflare. Unset: on when the site is behind
+        // Cloudflare. Set false if your nginx config already has real_ip_header.
+        'nginx_real_ip' => env('PORRO_NGINX_REAL_IP'),
+
         // Where the setup page looks to confirm nginx includes the file, and
         // the stamp the reload job touches. The defaults suit Forge.
         'nginx_config_dirs' => null,

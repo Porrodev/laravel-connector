@@ -80,7 +80,7 @@ Works without a Porro account. IP addresses stay on the site.
   - **Syncing:** it syncs after every change and on the scheduled task. Only production syncs, and only to the zone it connected to, so a local or staging copy can't push its list.
   - **Shared list:** the list is shared by every site on the Cloudflare account. Each site only adds and removes items tagged with its own id, and an IP another site already blocked is left alone.
   - **Commands:** `porro:cloudflare` shows the status. `porro:cloudflare sync` syncs now, and `porro:cloudflare disconnect` removes this site's items and the rule.
-- **nginx mode** (`PORRO_BLOCK_NGINX=true`). `/porro/blocking/nginx` walks through setup with this site's real paths. It also lists every server and how far each has got: no file yet, include missing, waiting for reload, or loaded.
+- **nginx mode** (`PORRO_BLOCK_NGINX=true`). `/porro/blocking/nginx` walks through setup in three steps with this site's real paths, copy buttons, and an example config showing where the include line goes. Behind Cloudflare, the deny file also carries Cloudflare's real IP lines, so the site's config needs only that one line. It also lists every server and how far each has got: no file yet, include missing, waiting for reload, or loaded.
   - **How a server is checked:** each server checks itself every minute by looking, never by running anything. It confirms the file exists, that a readable nginx config includes it, and that the reload job has run since the last change.
   - **Seeing every server:** the list needs a cache the servers share, such as Redis or the database.
   - **The details:**
@@ -129,6 +129,7 @@ Content, customer or user data, environment values or secrets. Run `php artisan 
 | `PORRO_PROTECT_FORGE` | `true` | Never block Laravel Forge's servers and health checks. Set `false` if the site isn't on Forge |
 | `PORRO_PROTECT_CRAWLERS` | `true` | Never block Google's and Bing's verified crawlers |
 | `PORRO_NGINX_PATH` | `storage/porro/nginx-blocklist.conf` | Where the deny file goes |
+| `PORRO_NGINX_REAL_IP` | on behind Cloudflare | Put Cloudflare's real IP lines in the deny file. Set `false` if your nginx config already has `real_ip_header` |
 | `PORRO_CLOUDFLARE_TOKEN` | | Cloudflare API token for WAF mode |
 | `PORRO_CLOUDFLARE_HOST` | `APP_URL`'s host | The host whose Cloudflare zone gets the rule |
 | `PORRO_ABUSEIPDB_KEY` | | AbuseIPDB key, for the reputation check on IP details |
