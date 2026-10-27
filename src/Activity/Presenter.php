@@ -5,6 +5,7 @@ namespace Porro\Laravel\Activity;
 use Carbon\Carbon;
 use Porro\Core\Activity\Entry;
 use Porro\Core\Activity\NginxBlocklist;
+use Porro\Core\Activity\NginxStatus;
 use Porro\Core\Activity\ProtectedRanges;
 use Porro\Core\Activity\Recorder;
 use Throwable;
@@ -115,12 +116,31 @@ class Presenter
                 'nginxWritten' => is_file($nginxPath) ? Carbon::createFromTimestamp((int) filemtime($nginxPath))->diffForHumans() : null,
                 'include' => "include {$nginxPath};",
                 'realIp' => NginxBlocklist::realIp($this->activity->ranges()),
-                'reload' => sprintf('f=%s; s=/var/tmp/porro-nginx.stamp; [ "$f" -nt "$s" ] && nginx -t -q && systemctl reload nginx && touch "$s"', $nginxPath),
+                'reload' => NginxStatus::reloadJob($nginxPath, (string) (config('porro.blocklist.nginx_stamp') ?: NginxStatus::STAMP)),
+                'servers' => app(NginxServers::class)->present(),
             ],
             'protected' => array_values(array_filter(array_map(fn (string $source) => [
                 'label' => ProtectedRanges::label($source),
                 'count' => count($ranges[$source] ?? []),
             ], array_keys($ranges)), fn ($row) => $row['count'] > 0)),
+        ];
+    }
+
+    /**
+     * The nginx setup page: enforcement and servers, whether the site is
+     * behind Cloudflare (so the real IP lines come first), and whether the
+     * cache is shared, without which only this server can be listed.
+     *
+     * @return array<string, mixed>
+     */
+    public function nginx(?string $remoteAddr = null): array
+    {
+        $blocking = $this->blocking();
+
+        return [
+            'enforcement' => $blocking['enforcement'],
+            'behindCloudflare' => $blocking['cloudflare']['configured'] || ($remoteAddr !== null && $this->activity->ranges()->isCloudflare($remoteAddr)),
+            'sharedCache' => ! in_array(config('cache.default'), ['file', 'array', 'apc'], true),
         ];
     }
 

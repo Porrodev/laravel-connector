@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **nginx setup page** at `/porro/blocking/nginx`: the two one-time steps with this site's real paths. The real-IP lines show first when the site is behind Cloudflare.
+  - **Every server, worst first:** each one's progress is recorded by `porro:blocklist-sync` every minute. The states are no file yet, include missing, waiting for reload, or loaded.
+  - **Missing real-IP lines:** it warns when a server behind Cloudflare doesn't have them.
+  - **Paths:** `porro.blocklist.nginx_config_dirs` and `nginx_stamp` change where it looks.
 - **Cloudflare WAF mode:** `PORRO_CLOUDFLARE_TOKEN` and `php artisan porro:cloudflare connect` block IPs at Cloudflare's edge, through the account's `porro_blocklist` list and a rule added next to the zone's own rules.
   - **When it syncs:** after every change (once the response has gone) and on the scheduled task.
   - **Where:** production only, and only to the connected zone.

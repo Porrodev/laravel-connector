@@ -50,6 +50,15 @@ class PageController extends Controller
         ]);
     }
 
+    /**
+     * Setting up nginx: the two one-time steps for each server, and how far
+     * each server has got.
+     */
+    public function nginx(Request $request): View
+    {
+        return $this->page($request, 'nginx', $this->presenter->nginx((string) $request->server('REMOTE_ADDR')));
+    }
+
     public function refresh(): RedirectResponse
     {
         $this->health->get(fresh: true);

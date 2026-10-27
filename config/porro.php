@@ -49,6 +49,11 @@ return [
         'nginx' => (bool) env('PORRO_BLOCK_NGINX', false),
         'nginx_path' => env('PORRO_NGINX_PATH', storage_path('porro/nginx-blocklist.conf')),
 
+        // Where the setup page looks to confirm nginx includes the file, and
+        // the stamp the reload job touches. The defaults suit Forge.
+        'nginx_config_dirs' => null,
+        'nginx_stamp' => null,
+
         // Block at Cloudflare's edge: a token with Account Filter Lists Edit,
         // Zone WAF Edit and Zone Read. Then php artisan porro:cloudflare connect.
         // Only production syncs. The host defaults to APP_URL's.

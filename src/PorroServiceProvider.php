@@ -37,6 +37,7 @@ class PorroServiceProvider extends ServiceProvider
         $this->app->singleton(Reporter::class);
         $this->app->singleton(Activity::class);
         $this->app->singleton(CloudflareMode::class);
+        $this->app->singleton(Activity\NginxServers::class);
         $this->app->bind(CrontabIo::class);
         $this->app->tag([LaravelCollector::class, BackupCollector::class, HealthCollector::class], 'porro.collectors');
     }
@@ -131,6 +132,7 @@ class PorroServiceProvider extends ServiceProvider
                 Route::get('/', [PageController::class, 'health'])->name('health');
                 Route::get('activity', [PageController::class, 'activity'])->name('activity');
                 Route::get('blocking', [PageController::class, 'blocking'])->name('blocking');
+                Route::get('blocking/nginx', [PageController::class, 'nginx'])->name('nginx');
                 Route::post('refresh', [PageController::class, 'refresh'])->name('refresh');
                 Route::post('blocking/block', [PageController::class, 'block'])->name('block');
                 Route::post('blocking/unblock', [PageController::class, 'unblock'])->name('unblock');
