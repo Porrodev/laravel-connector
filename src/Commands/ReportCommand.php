@@ -4,6 +4,7 @@ namespace Porro\Laravel\Commands;
 
 use Illuminate\Console\Command;
 use InvalidArgumentException;
+use Porro\Laravel\Activity\Activity;
 use Porro\Laravel\Heartbeat;
 use Porro\Laravel\Reporter;
 use Porro\Laravel\Reporting;
@@ -33,6 +34,7 @@ class ReportCommand extends Command
 
         if ($this->option('scheduled')) {
             Heartbeat::beat();
+            app(Activity::class)->maintain();
         }
 
         try {

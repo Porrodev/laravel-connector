@@ -3,6 +3,32 @@
 ## Unreleased
 
 - `PORRO_ENABLED` now defaults to off outside `APP_ENV=production`, so a local or staging copy with the live `.env` doesn't report as the live site. An explicit `PORRO_ENABLED=true` still reports from anywhere. `porro:status` and `porro:report` say why reporting is off.
+- **IP details** at `/porro/activity/{ip}`, linked from Activity.
+  - **Shows:** country, network (Cloudflare Intel, falling back to Radar once Intel is refused), confirmed reverse DNS, and badges for Tor, Spamhaus DROP, hosting, fake crawlers and research scanners.
+  - **Also:** the last 48 hours here, block and safelist actions, and an AbuseIPDB check only on click.
+  - `Presenter::ip()` has the data for the other panels.
+- Recorded activity keeps each IP's last user agent.
+- **The activity table is ranked by what's known about each IP:** Spamhaus ×3, Tor ×1.5, Cloudflare risk ×2, and a hosting network trying passwords ×1.5. Research scanners go last, marked "Scanner, low risk". Badges show next to each IP.
+- **nginx setup page** at `/porro/blocking/nginx`: the two one-time steps with this site's real paths. The real-IP lines show first when the site is behind Cloudflare.
+  - **Every server, worst first:** each one's progress is recorded by `porro:blocklist-sync` every minute. The states are no file yet, include missing, waiting for reload, or loaded.
+  - **Missing real-IP lines:** it warns when a server behind Cloudflare doesn't have them.
+  - **Paths:** `porro.blocklist.nginx_config_dirs` and `nginx_stamp` change where it looks.
+- **Cloudflare WAF mode:** `PORRO_CLOUDFLARE_TOKEN` and `php artisan porro:cloudflare connect` block IPs at Cloudflare's edge, through the account's `porro_blocklist` list and a rule added next to the zone's own rules.
+  - **When it syncs:** after every change (once the response has gone) and on the scheduled task.
+  - **Where:** production only, and only to the connected zone.
+  - **Status:** the `/porro` Blocking page shows whether it's connected and when it last synced, plus any error.
+- **The `/porro` page**, like Horizon, with Site health, Activity and Blocking tabs.
+  - **Access:** open in `local`. Elsewhere it's closed unless a `viewPorro` gate allows the user, and guests never get in. A `managePorroBlocklist` gate can narrow who changes the lists.
+  - **Statamic and Filament:** it steps aside when their connector is installed (`PORRO_PAGE` overrides).
+  - **Assets:** one Blade layout with inline styles, so nothing to publish or build.
+- `Porro\Laravel\Activity\Presenter` shapes activity and blocklist data for a page. Statamic and Filament can share it.
+- Suspicious activity and blocking, on `porro/php-core` 0.3.
+  - **Migration:** run `php artisan migrate` for the `porro_blocklist` and `porro_safelist` tables.
+  - **Watching:** global middleware records scanner probes, 404 bursts and form floods (production only unless `PORRO_ACTIVITY=true`). Failed logins are counted on any guard.
+  - **Blocking:** blocked IPs get a 403 before the app runs. Behind Cloudflare it uses the real visitor IP and records their country.
+  - **Panel:** `SiteHealth` adds an `activity` section and its issues, including a critical one when `/.env` or `/.git` answers 200.
+  - **Commands:** `porro:block` blocks or unblocks from the command line. `porro:blocklist-sync` writes the nginx deny file (`PORRO_BLOCK_NGINX=true`) and runs every minute only in that mode. Otherwise housekeeping runs on the existing scheduled task.
+- The HTTP client behind the panel moved to `Porro\Laravel\HttpSources`.
 
 ## 0.2.2 - 2026-10-25
 

@@ -27,6 +27,67 @@ The Statamic and Filament connectors show this as a panel in the control panel. 
 
 When the site isn't connected, the scheduler still writes a heartbeat every `PORRO_INTERVAL` minutes so the panel can tell whether cron runs.
 
+## The /porro page
+
+Like Horizon's dashboard, but for the site's health. Visit `/porro` for three tabs:
+
+- **Site health:** the checks above, and Porro's findings once connected
+- **Activity:** suspicious requests in the last 24 hours, with buttons to block or safelist each IP
+- **Blocking:** the blocklist and safelist, and the ranges that can never be blocked
+
+**Locked down like Horizon.** In the `local` environment anyone can open it. Anywhere else it returns 403 unless your app defines a `viewPorro` gate and the gate allows the signed-in user. Guests never get in. With no gate, production is closed to everyone. Define the gate in a service provider's `boot()`:
+
+```php
+use Illuminate\Support\Facades\Gate;
+
+Gate::define('viewPorro', fn (User $user) => in_array($user->email, ['ops@youragency.com']));
+```
+
+Changing the lists also checks a `managePorroBlocklist` gate when you define one. Without it, anyone who can view the page can change the lists.
+
+- **Path:** set `PORRO_PATH` to move it.
+- **Middleware:** set `porro.page.middleware` to change it (default `web`).
+- **Turning it off:** `PORRO_PAGE=false`.
+- **Statamic and Filament sites:** the page turns itself off, because their connectors show the same things in the control panel. Set `PORRO_PAGE=true` to have both.
+- **Assets:** everything is in one Blade layout with inline styles, so there's nothing to publish or build.
+
+## Suspicious activity and blocking
+
+Works without a Porro account. IP addresses stay on the site.
+
+- **Run the migration first:** `php artisan migrate` adds the `porro_blocklist` and `porro_safelist` tables.
+- **What's watched:** requests for scanner paths like `/.env`, `/.git` and `wp-login.php`, failed sign-ins on any guard, bursts of 404s and floods of form posts.
+  - Counts are kept in the cache for 48 hours.
+  - Only those requests are recorded, so normal page views cost nothing.
+  - Usernames are kept only as hashes.
+- **Production only by default.** A local or staging copy records nothing unless `PORRO_ACTIVITY=true`.
+- **Exposed files:** if `/.env` or `/.git` ever answers 200, the panel raises it as critical.
+- **Blocking:** blocked IPs get a plain 403 before the app runs, from middleware that's first in the global stack.
+  - Behind Cloudflare, the visitor's real IP is used and Cloudflare itself is never blocked.
+- **Always protected:** Cloudflare, Laravel Forge and its health checks, private ranges, your safelist and `porro.blocklist.protected`. Wide ranges and your own IP are refused too.
+- **Country:** behind Cloudflare it comes from the request for free. Otherwise a free [DB-IP](https://db-ip.com) country file is downloaded monthly into `storage/porro`.
+- **IP details:** click an IP on the Activity tab (`/porro/activity/{ip}`). Results are cached a day.
+  - **Who it is:**
+    - country, network and its type, and Cloudflare's risk categories, when Cloudflare is set up (Intel if the token has **Account → Intel → Read**, otherwise Radar)
+    - a reverse-DNS hostname, kept only when it resolves back to the same IP
+    - badges for Tor exits, Spamhaus DROP, hosting providers, fake Googlebots and research scanners
+  - **What it did here:** activity over the last 48 hours and its last requests.
+  - **Actions:** block it, block its /24 (offered only for hosting networks), or safelist it.
+  - **Reputation:** with `PORRO_ABUSEIPDB_KEY`, a button checks AbuseIPDB. That's the one lookup that sends the IP anywhere, so it only runs when clicked, and only for people who can manage the blocklist.
+- **Cloudflare WAF mode**, for sites behind Cloudflare. Blocked IPs are stopped at Cloudflare's edge, before they reach the server.
+  - **Token:** create a Cloudflare API token with **Account Filter Lists Edit**, **Zone WAF Edit** and **Zone Read**, and set `PORRO_CLOUDFLARE_TOKEN`. The token stays in the environment, never the database.
+  - **Connect:** run `php artisan porro:cloudflare connect`. It finds the zone serving `APP_URL` (or `PORRO_CLOUDFLARE_HOST`) and creates or reuses the account's `porro_blocklist` IP List. It then adds one custom rule blocking that list **next to your existing rules**, never replacing them.
+  - **Syncing:** it syncs after every change and on the scheduled task. Only production syncs, and only to the zone it connected to, so a local or staging copy can't push its list.
+  - **Shared list:** the list is shared by every site on the Cloudflare account. Each site only adds and removes items tagged with its own id, and an IP another site already blocked is left alone.
+  - **Commands:** `porro:cloudflare` shows the status. `porro:cloudflare sync` syncs now, and `porro:cloudflare disconnect` removes this site's items and the rule.
+- **nginx mode** (`PORRO_BLOCK_NGINX=true`). `/porro/blocking/nginx` walks through setup with this site's real paths. It also lists every server and how far each has got: no file yet, include missing, waiting for reload, or loaded.
+  - **How a server is checked:** each server checks itself every minute by looking, never by running anything. It confirms the file exists, that a readable nginx config includes it, and that the reload job has run since the last change.
+  - **Seeing every server:** the list needs a cache the servers share, such as Redis or the database.
+  - **The details:**
+  - `porro:blocklist-sync` writes a `deny` file every minute on each server, in production only.
+  - Include it in the site's nginx config and reload nginx when it changes.
+  - Without nginx mode, there's no extra scheduled task, so hosts that scale to zero can still sleep.
+
 ## What leaves a site
 
 - Laravel, PHP and package versions (names and versions from `composer.lock`; the list is only sent when the lock file changes)
@@ -50,6 +111,9 @@ Content, customer or user data, environment values or secrets. Run `php artisan 
 | `porro:cron` | Adds the scheduler to the crontab on its own, no key needed |
 | `porro:report` | Sends a report now (`--packages` forces the package list) |
 | `porro:status` | Shows what the next report contains (`--json` for the raw report) |
+| `porro:block <ip>` | Blocks an IP or range (`--reason`, `--days`; `--remove` unblocks) |
+| `porro:blocklist-sync` | Tidies the blocklist and writes the nginx deny file |
+| `porro:cloudflare [status\|connect\|sync\|disconnect]` | Blocks at Cloudflare's edge |
 
 ## Config
 
@@ -59,6 +123,17 @@ Content, customer or user data, environment values or secrets. Run `php artisan 
 | `PORRO_INTERVAL` | `15` | Minutes between reports |
 | `PORRO_ENABLED` | unset | `true` or `false` to force reporting on or off |
 | `PORRO_FAILED_JOB_MESSAGES` | `false` | Send the first line of failed jobs' exception messages, redacted |
+| `PORRO_ACTIVITY` | unset | Record suspicious activity; unset means production only |
+| `PORRO_BLOCK_APP` | `true` | Turn blocked IPs away with a 403 |
+| `PORRO_BLOCK_NGINX` | `false` | Write the nginx deny file every minute |
+| `PORRO_NGINX_PATH` | `storage/porro/nginx-blocklist.conf` | Where the deny file goes |
+| `PORRO_CLOUDFLARE_TOKEN` | | Cloudflare API token for WAF mode |
+| `PORRO_CLOUDFLARE_HOST` | `APP_URL`'s host | The host whose Cloudflare zone gets the rule |
+| `PORRO_ABUSEIPDB_KEY` | | AbuseIPDB key, for the reputation check on IP details |
+| `PORRO_PAGE` | unset | The /porro page: unset means on, except alongside the Statamic or Filament connector |
+| `PORRO_PATH` | `porro` | Where the page lives |
+
+The safelist, extra protected ranges, thresholds and the paths your app really serves go in `config/porro.php` under `activity` and `blocklist`.
 
 With `PORRO_ENABLED` unset, only `APP_ENV=production` (or `prod`, `live`) reports. A local or staging copy running with the live `.env` stays quiet, so it can't overwrite the live site's state in Porro. Set `PORRO_ENABLED=true` to report from another environment on purpose. `porro:status` shows whether reporting is on and why.
 
