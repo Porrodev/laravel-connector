@@ -26,7 +26,7 @@ class Reporting
             return 'PORRO_ENABLED=false';
         }
 
-        if ($setting === null && ! app()->environment('production')) {
+        if ($setting === null && ! app()->environment(['production', 'prod', 'live'])) {
             return 'not production (APP_ENV='.app()->environment().'). Set PORRO_ENABLED=true to report from here';
         }
 
