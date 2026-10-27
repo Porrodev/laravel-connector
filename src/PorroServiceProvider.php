@@ -2,10 +2,12 @@
 
 namespace Porro\Laravel;
 
+use Filament\FilamentServiceProvider;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Porro\Core\CrontabIo;
 use Porro\Laravel\Activity\Activity;
@@ -20,6 +22,9 @@ use Porro\Laravel\Commands\ConnectCommand;
 use Porro\Laravel\Commands\CronCommand;
 use Porro\Laravel\Commands\ReportCommand;
 use Porro\Laravel\Commands\StatusCommand;
+use Porro\Laravel\Http\Authorize;
+use Porro\Laravel\Http\PageController;
+use Statamic\Statamic;
 
 class PorroServiceProvider extends ServiceProvider
 {
@@ -36,7 +41,9 @@ class PorroServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+        $this->loadViewsFrom(__DIR__.'/../resources/views', 'porro-laravel');
         $this->watchRequests();
+        $this->page();
 
         if (! $this->app->runningInConsole()) {
             return;
@@ -93,5 +100,39 @@ class PorroServiceProvider extends ServiceProvider
         });
 
         Event::listen(Failed::class, RecordFailedLogin::class);
+    }
+
+    public static function pageEnabled(): bool
+    {
+        $enabled = config('porro.page.enabled');
+
+        return $enabled === null
+            ? ! class_exists(Statamic::class) && ! class_exists(FilamentServiceProvider::class)
+            : filter_var($enabled, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /**
+     * The /porro page. Skipped when Statamic or Filament shows the same
+     * things in its own control panel, unless PORRO_PAGE says otherwise.
+     */
+    private function page(): void
+    {
+        if (! self::pageEnabled() || $this->app->routesAreCached()) {
+            return;
+        }
+
+        Route::middleware([...(array) config('porro.page.middleware', ['web']), Authorize::class])
+            ->prefix(trim((string) config('porro.page.path', 'porro'), '/'))
+            ->name('porro.')
+            ->group(function () {
+                Route::get('/', [PageController::class, 'health'])->name('health');
+                Route::get('activity', [PageController::class, 'activity'])->name('activity');
+                Route::get('blocking', [PageController::class, 'blocking'])->name('blocking');
+                Route::post('refresh', [PageController::class, 'refresh'])->name('refresh');
+                Route::post('blocking/block', [PageController::class, 'block'])->name('block');
+                Route::post('blocking/unblock', [PageController::class, 'unblock'])->name('unblock');
+                Route::post('blocking/safelist', [PageController::class, 'safelist'])->name('safelist');
+                Route::post('blocking/unsafelist', [PageController::class, 'unsafelist'])->name('unsafelist');
+            });
     }
 }

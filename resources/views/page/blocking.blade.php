@@ -1,0 +1,87 @@
+@extends('porro-laravel::page.layout', ['title' => __('Blocking')])
+
+@section('content')
+    <div class="head">
+        <div>
+            <h1>{{ __('Blocking') }}</h1>
+            <p class="sub">{{ trans_choice(':count blocked|:count blocked', count($blocks), ['count' => count($blocks)]) }} · {{ trans_choice(':count safelisted|:count safelisted', count($safe), ['count' => count($safe)]) }}</p>
+        </div>
+    </div>
+
+    @if ($failed)
+        <div class="panel"><p class="note" style="padding-top: 14px">{{ __('The blocklist tables aren’t there yet. Run php artisan migrate on this site.') }}</p></div>
+    @endif
+
+    <section class="panel">
+        <div class="panel-head"><span>{{ __('Where blocks are enforced') }}</span></div>
+        <div class="row">
+            <div class="grow">
+                <span class="title">{{ __('In the app') }}</span>
+                <span class="chip {{ $enforcement['app'] ? 'on' : '' }}">{{ $enforcement['app'] ? __('active') : __('off') }}</span>
+                <div class="small">{{ __('Blocked IPs get a 403 from middleware before routing. Turn off with PORRO_BLOCK_APP=false.') }}</div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="grow">
+                <span class="title">nginx</span>
+                <span class="chip {{ $enforcement['nginx'] && $enforcement['production'] && $enforcement['nginxWritten'] ? 'on' : '' }}">
+                    @if (! $enforcement['nginx']) {{ __('not set up') }}
+                    @elseif (! $enforcement['production']) {{ __('production only') }}
+                    @elseif ($enforcement['nginxWritten']) {{ __('written :ago', ['ago' => $enforcement['nginxWritten']]) }}
+                    @else {{ __('waiting for the first sync') }}
+                    @endif
+                </span>
+                @if ($enforcement['nginx'])
+                    <div class="small">{{ __('On each server, include the file in the site’s nginx config (Forge: Site → Edit Nginx Configuration, inside server { }), real IP lines first when behind Cloudflare:') }}</div>
+                    <pre>{{ $enforcement['realIp'] }}{{ $enforcement['include'] }}</pre>
+                    <div class="small" style="margin-top: 8px">{{ __('Then reload nginx when the list changes: a scheduled job as root, every minute (Forge: Server → Scheduler):') }}</div>
+                    <pre>{{ $enforcement['reload'] }}</pre>
+                @else
+                    <div class="small">{{ __('For sites not behind Cloudflare: set PORRO_BLOCK_NGINX=true and this page shows the two one-time steps for each server.') }}</div>
+                @endif
+            </div>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-head"><span>{{ __('Blocklist') }}</span><span>{{ count($blocks) }}</span></div>
+        @if ($canManage)
+            <form method="POST" action="{{ route('porro.block') }}" class="form">
+                @csrf
+                <input type="hidden" name="form" value="block">
+                <input type="text" name="ip" required value="{{ old('form') === 'block' ? old('ip') : '' }}" placeholder="{{ __('IP or range') }}" aria-label="{{ __('IP or range') }}" style="flex: 0 1 16rem">
+                <input type="text" name="reason" value="{{ old('form') === 'block' ? old('reason') : '' }}" placeholder="{{ __('Reason') }}" aria-label="{{ __('Reason') }}" style="flex: 1 1 10rem">
+                <select name="days" aria-label="{{ __('Expires') }}">
+                    <option value="7">{{ __('7 days') }}</option>
+                    <option value="30">{{ __('30 days') }}</option>
+                    <option value="0">{{ __('Never') }}</option>
+                </select>
+                <button class="btn primary" type="submit">{{ __('Block') }}</button>
+            </form>
+        @endif
+        @include('porro-laravel::page.entries', ['entries' => $blocks, 'remove' => route('porro.unblock'), 'empty' => __('Nothing is blocked.')])
+    </section>
+
+    <section class="panel" id="safelist">
+        <div class="panel-head"><span>{{ __('Safelist') }}</span><span>{{ __('never blocked or flagged') }}</span></div>
+        @if ($canManage)
+            <form method="POST" action="{{ route('porro.safelist') }}" class="form">
+                @csrf
+                <input type="hidden" name="form" value="safelist">
+                <input type="text" name="ip" required value="{{ old('form') === 'safelist' ? old('ip') : $prefill }}" placeholder="{{ __('IP or range') }}" aria-label="{{ __('IP or range') }}" style="flex: 0 1 16rem">
+                <input type="text" name="label" required value="{{ old('form') === 'safelist' ? old('label') : '' }}" placeholder="{{ __('Label, e.g. 1994 office') }}" aria-label="{{ __('Label') }}" style="flex: 1 1 10rem">
+                <label class="small muted" style="display: inline-flex; align-items: center; gap: 6px"><input type="checkbox" name="confirm_wide" value="1"> {{ __('Wide range is OK') }}</label>
+                <button class="btn primary" type="submit">{{ __('Add') }}</button>
+            </form>
+        @endif
+        @include('porro-laravel::page.entries', ['entries' => $safe, 'remove' => route('porro.unsafelist'), 'empty' => __('Nothing is safelisted.')])
+    </section>
+
+    <section class="panel">
+        <div class="panel-head"><span>{{ __('Always protected') }}</span><span>{{ __('can’t be blocked') }}</span></div>
+        <p class="note small">{{ __('Infrastructure that has to reach this site. Blocks that overlap these are refused, and removed if a list changes.') }}</p>
+        @foreach ($protected as $row)
+            <div class="row"><span class="grow">{{ $row['label'] }}</span><span class="muted small">{{ trans_choice(':count range|:count ranges', $row['count'], ['count' => $row['count']]) }}</span></div>
+        @endforeach
+    </section>
+@endsection

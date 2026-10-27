@@ -14,6 +14,17 @@ return [
     // Turn reporting off without uninstalling, e.g. on local machines.
     'enabled' => (bool) env('PORRO_ENABLED', true),
 
+    // The /porro page, like Horizon's: Site health, Activity and Blocking.
+    // Open to everyone locally; elsewhere only to users your "viewPorro"
+    // gate allows, so it's closed in production until you define one.
+    'page' => [
+        // Unset: on, unless the Statamic or Filament connector shows these
+        // in their own control panel.
+        'enabled' => env('PORRO_PAGE'),
+        'path' => env('PORRO_PATH', 'porro'),
+        'middleware' => ['web'],
+    ],
+
     'activity' => [
         // Record probes, failed logins, 404 bursts and form floods. Unset:
         // production only, so a local copy's own traffic isn't counted.
