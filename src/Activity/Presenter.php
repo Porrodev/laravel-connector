@@ -25,6 +25,25 @@ class Presenter
     /** How each signal reads on a chip. */
     public const SIGNALS = [Recorder::PROBE => 'probe', Recorder::LOGIN_FAILED => 'login', Recorder::NOT_FOUND => '404', Recorder::POST_FLOOD => 'form'];
 
+    /** Entries shown on the Blocking page; the full lists have their own pages. */
+    public const PREVIEW = 10;
+
+    public const PER_PAGE = 50;
+
+    /** Lists with their own page, and the filters each offers. */
+    public const LISTS = [
+        'blocklist' => ['all', Entry::MANUAL, Entry::SUGGESTED, Entry::CONFIG, 'expiring'],
+        'safelist' => ['all', Entry::MANUAL, Entry::CONFIG, 'expiring'],
+    ];
+
+    private const FILTER_LABELS = [
+        'all' => 'All',
+        Entry::MANUAL => 'Manual',
+        Entry::SUGGESTED => 'Suggested',
+        Entry::CONFIG => 'From config',
+        'expiring' => 'Expiring within 7 days',
+    ];
+
     public function __construct(private Activity $activity) {}
 
     /**
@@ -401,18 +420,22 @@ class Presenter
     }
 
     /**
-     * @return array<string, mixed>
+     * The search, filter and page from a list page's query string, ignoring
+     * anything that isn't a plain value (?q[]=… is just a search for nothing).
+     *
+     * @param  array<string, mixed>  $query
+     * @return array{search: string, filter: string, page: int}
      */
-    /** Entries shown on the Blocking page; the full lists have their own pages. */
-    public const PREVIEW = 10;
+    public static function listQuery(array $query): array
+    {
+        $string = fn (string $key, string $default) => is_string($query[$key] ?? null) ? $query[$key] : $default;
 
-    public const PER_PAGE = 50;
-
-    /** Lists with their own page, and the filters each offers. */
-    public const LISTS = [
-        'blocklist' => ['all', Entry::MANUAL, Entry::SUGGESTED, Entry::CONFIG, 'expiring'],
-        'safelist' => ['all', Entry::MANUAL, Entry::CONFIG, 'expiring'],
-    ];
+        return [
+            'search' => $string('q', ''),
+            'filter' => $string('filter', 'all'),
+            'page' => max(1, (int) $string('page', '1')),
+        ];
+    }
 
     /**
      * One page of the blocklist or safelist, newest first: matching $search
@@ -462,14 +485,6 @@ class Presenter
         ];
     }
 
-    private const FILTER_LABELS = [
-        'all' => 'All',
-        Entry::MANUAL => 'Manual',
-        Entry::SUGGESTED => 'Suggested',
-        Entry::CONFIG => 'From config',
-        'expiring' => 'Expiring within 7 days',
-    ];
-
     /**
      * @param  list<Entry>  $entries
      * @return list<Entry>
@@ -511,6 +526,9 @@ class Presenter
         };
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function entry(Entry $entry): array
     {
         return [

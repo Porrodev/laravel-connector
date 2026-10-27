@@ -207,6 +207,10 @@ describe('the full lists', function () {
         $this->get('/porro/blocking/blocklist?filter=nonsense')->assertOk()->assertSee('Page 1 of 2');
     });
 
+    it('ignores a query string that isn’t plain values', function () {
+        $this->get('/porro/blocking/blocklist?q[]=x&filter[]=manual&page[]=2')->assertOk()->assertSee('Page 1 of 2');
+    });
+
     it('has a safelist page too, and nothing else', function () {
         $this->get('/porro/blocking/safelist')->assertOk()->assertSee('Nothing is safelisted.');
         $this->get('/porro/blocking/other')->assertNotFound();

@@ -84,12 +84,7 @@ class PageController extends Controller
      */
     public function list(Request $request, string $list): View
     {
-        return $this->page($request, 'list', $this->presenter->entries(
-            $list,
-            (string) $request->query('q', ''),
-            (string) $request->query('filter', 'all'),
-            (int) $request->query('page', 1),
-        ));
+        return $this->page($request, 'list', $this->presenter->entries($list, ...Presenter::listQuery($request->query())));
     }
 
     /**
