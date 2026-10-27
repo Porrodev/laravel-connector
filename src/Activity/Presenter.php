@@ -61,6 +61,7 @@ class Presenter
                 'request' => trim(((string) ($ip['last_method'] ?? '')).' '.((string) ($ip['last_path'] ?? ''))),
                 'seen' => isset($ip['last_seen']) ? Carbon::createFromTimestamp((int) $ip['last_seen'])->diffForHumans() : null,
                 'blocked' => $this->isBlocked($ip['ip']),
+                'badges' => self::tableBadges((array) ($ip['badges'] ?? [])),
                 'reason' => __('Flagged: :signals', ['signals' => implode(', ', array_map(fn ($s) => "{$s['label']} ×{$s['count']}", $signals))]),
             ];
         }
@@ -146,6 +147,34 @@ class Presenter
             'behindCloudflare' => $blocking['cloudflare']['configured'] || ($remoteAddr !== null && $this->activity->ranges()->isCloudflare($remoteAddr)),
             'sharedCache' => ! in_array(config('cache.default'), ['file', 'array', 'apc'], true),
         ];
+    }
+
+    /**
+     * Short badges for the activity table. A research scanner says it's
+     * low risk, which is why it sits at the bottom.
+     *
+     * @param  array<mixed>  $badges
+     * @return list<array{label: string, tone: string}>
+     */
+    private static function tableBadges(array $badges): array
+    {
+        $labels = [
+            IpDetails::SPAMHAUS => ['Spamhaus', 'danger'],
+            IpDetails::TOR => ['Tor', 'danger'],
+            'risk' => ['Cloudflare risk', 'danger'],
+            IpDetails::FAKE_CRAWLER => ['Fake crawler', 'danger'],
+            IpDetails::HOSTING => ['Hosting', 'warning'],
+            IpDetails::SCANNER => ['Scanner, low risk', 'neutral'],
+        ];
+        $out = [];
+
+        foreach ($labels as $key => [$label, $tone]) {
+            if (in_array($key, $badges, true)) {
+                $out[] = ['label' => __($label), 'tone' => $tone];
+            }
+        }
+
+        return $out;
     }
 
     /** How each badge reads, and how worrying it is. */

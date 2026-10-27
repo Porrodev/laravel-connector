@@ -20,6 +20,7 @@ use Porro\Core\Activity\IpDetails;
 use Porro\Core\Activity\IpSet;
 use Porro\Core\Activity\Probes;
 use Porro\Core\Activity\ProtectedRanges;
+use Porro\Core\Activity\Ranking;
 use Porro\Core\Activity\Recorder;
 use Porro\Core\Activity\Summary;
 use Porro\Core\Health\Issue;
@@ -285,7 +286,20 @@ class Activity
      */
     public function flagged(Summary $summary): array
     {
-        return $this->countries()->fill($summary->flagged);
+        // What's known without waiting: the Tor and Spamhaus lists, and any
+        // lookup already cached from someone opening an IP's details.
+        $details = new IpDetails(HttpSources::make(), null, null, fn () => null);
+
+        return Ranking::apply(
+            $this->countries()->fill($summary->flagged),
+            function ($ip) use ($details) {
+                try {
+                    return $details->known($ip->ip, $ip->userAgent);
+                } catch (Throwable) {
+                    return ['badges' => [], 'risks' => [], 'network_type' => null];
+                }
+            },
+        );
     }
 
     /**

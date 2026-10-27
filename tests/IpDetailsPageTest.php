@@ -11,6 +11,7 @@ use Porro\Core\Activity\IpDetails;
 use Porro\Core\Activity\Recorder;
 use Porro\Laravel\Activity\Activity;
 use Porro\Laravel\Activity\CloudflareMode;
+use Porro\Laravel\SiteHealth;
 
 uses(RefreshDatabase::class);
 
@@ -127,4 +128,28 @@ it('is closed in production without the gate, like the rest of /porro', function
     Gate::define('viewPorro', fn ($user) => false);
 
     $this->get('/porro/activity/185.220.101.4')->assertForbidden();
+});
+
+it('ranks the activity table by what’s known, scanners last', function () {
+    $recorder = app(Activity::class)->recorder();
+
+    // More probes than the Tor exit (4 against 3), but nothing known about it.
+    for ($i = 0; $i < 4; $i++) {
+        $recorder->record('103.75.190.11', Recorder::PROBE, 'GET', '/.env', 404);
+    }
+
+    // The busiest of all, but a research scanner once its details are looked up.
+    $this->app->instance('porro.reverse-dns', fn ($ip) => $ip === '167.94.138.5' ? 'scan-12.censys-scanner.com' : null);
+    for ($i = 0; $i < 20; $i++) {
+        $recorder->record('167.94.138.5', Recorder::PROBE, 'GET', '/.git/config', 404);
+    }
+    $this->get('/porro/activity/167.94.138.5')->assertSee('Research scanner');
+    app(SiteHealth::class)->forget();
+
+    $html = $this->get('/porro/activity')->assertSee('Scanner, low risk')->assertSee('Tor')->getContent();
+
+    // Tor: 3 probes × 5 × 1.5 = 22.5, above 4 plain probes (20) despite fewer.
+    // The scanner has the most (100) and still goes last.
+    expect(strpos($html, '185.220.101.4'))->toBeLessThan(strpos($html, '103.75.190.11'))
+        ->and(strpos($html, '103.75.190.11'))->toBeLessThan(strpos($html, '167.94.138.5'));
 });
