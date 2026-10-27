@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
 use Porro\Core\CrontabIo;
+use Porro\Laravel\Companions;
 use Porro\Laravel\Heartbeat;
 use Porro\Laravel\Tests\FakeCrontab;
 
@@ -141,4 +142,12 @@ it('refreshes a cached config so the scheduler sees the new key', function () {
     } finally {
         @unlink($cached);
     }
+});
+
+it('suggests the Statamic connector after connecting a Statamic site', function () {
+    $this->app->instance(Companions::class, new Companions(fn ($package) => $package === 'statamic/cms'));
+
+    $this->artisan('porro:connect', ['key' => siteKey()['token'], '--no-cron' => true])
+        ->expectsOutputToContain('composer require porro/statamic-connector')
+        ->assertSuccessful();
 });

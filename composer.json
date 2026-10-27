@@ -17,6 +17,10 @@
         "illuminate/console": "^11.0|^12.0|^13.0",
         "illuminate/http": "^11.0|^12.0|^13.0"
     },
+    "suggest": {
+        "porro/filament-connector": "Adds Site health and Blocking pages to your Filament panel. Includes this package.",
+        "porro/statamic-connector": "Adds a Porro section to the Statamic control panel. Includes this package."
+    },
     "autoload": {
         "psr-4": {
             "Porro\\Laravel\\": "src/"

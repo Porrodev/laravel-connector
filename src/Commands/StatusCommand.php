@@ -3,6 +3,7 @@
 namespace Porro\Laravel\Commands;
 
 use Illuminate\Console\Command;
+use Porro\Laravel\Companions;
 use Porro\Laravel\Reporter;
 
 class StatusCommand extends Command
@@ -41,6 +42,11 @@ class StatusCommand extends Command
 
         $this->components->twoColumnDetail('composer.lock', $report['lock']['hash'] ?? 'not found');
         $this->components->twoColumnDetail('Key set', config('porro.key') ? 'yes' : 'no');
+
+        if ($hints = $this->laravel->make(Companions::class)->hints()) {
+            $this->newLine();
+            $this->components->bulletList($hints);
+        }
 
         return self::SUCCESS;
     }

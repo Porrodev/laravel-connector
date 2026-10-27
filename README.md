@@ -17,7 +17,7 @@ On Laravel Cloud and Vapor the platform runs the scheduler for you, so there's n
 
 Add `php artisan porro:report` to your deploy script so Porro hears about deploys straight away.
 
-Using Filament or Statamic? Install [`porro/filament-connector`](https://github.com/Porrodev/filament-connector) or [`porro/statamic-connector`](https://github.com/Porrodev/statamic-connector) instead. They include this package.
+Using Filament or Statamic? Install [`porro/filament-connector`](https://github.com/Porrodev/filament-connector) or [`porro/statamic-connector`](https://github.com/Porrodev/statamic-connector) instead. They include this package and add Porro to the control panel. If you install this one on its own, `porro:connect` and `porro:status` point you to the right connector.
 
 ## Site health, with or without Porro
 

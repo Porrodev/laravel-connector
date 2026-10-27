@@ -8,6 +8,7 @@ use Porro\Core\Cron;
 use Porro\Core\CrontabIo;
 use Porro\Core\SiteKey;
 use Porro\Laravel\Commands\Concerns\SetsUpCron;
+use Porro\Laravel\Companions;
 use Porro\Laravel\Reporter;
 
 class ConnectCommand extends Command
@@ -70,6 +71,7 @@ class ConnectCommand extends Command
 
         $this->components->bulletList([
             'Add `php artisan porro:report` to your deploy script so Porro hears about deploys straight away.',
+            ...$this->laravel->make(Companions::class)->hints(),
         ]);
 
         return self::SUCCESS;

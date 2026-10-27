@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
+use Porro\Laravel\Companions;
 use Porro\Laravel\Reporter;
 
 beforeEach(function () {
@@ -60,4 +61,16 @@ it('leaves out backup and health results when spatie packages are not installed'
     expect($report['health'])->not->toHaveKey('backup_configured')
         ->and($report['health'])->not->toHaveKey('last_backup_at')
         ->and($report['health'])->not->toHaveKey('checks');
+});
+
+it('points Filament and Statamic sites at their connector', function () {
+    $installed = ['filament/filament', 'statamic/cms', 'porro/statamic-connector'];
+    $this->app->instance(Companions::class, new Companions(fn ($package) => in_array($package, $installed, true)));
+
+    $this->artisan('porro:status')
+        ->expectsOutputToContain('composer require porro/filament-connector')
+        ->doesntExpectOutputToContain('porro/statamic-connector')
+        ->assertSuccessful();
+
+    expect((new Companions(fn () => false))->hints())->toBe([]);
 });
