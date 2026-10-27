@@ -37,7 +37,7 @@
                         <tbody>
                             @foreach ($activity['flagged'] as $ip)
                                 <tr>
-                                    <td class="mono" style="white-space: nowrap">{{ $ip['ip'] }}</td>
+                                    <td class="mono" style="white-space: nowrap"><a href="{{ route('porro.ip', $ip['ip']) }}">{{ $ip['ip'] }}</a></td>
                                     <td style="white-space: nowrap" title="{{ $ip['country']['code'] ?? '' }}">{{ $ip['country']['label'] ?? '—' }}</td>
                                     <td>@foreach ($ip['signals'] as $signal)<span class="chip">{{ $signal['label'] }} {{ $signal['count'] }}</span>@endforeach</td>
                                     <td class="mono" style="overflow-wrap: anywhere">{{ $ip['request'] }}</td>

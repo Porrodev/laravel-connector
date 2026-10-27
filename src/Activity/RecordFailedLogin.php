@@ -31,6 +31,7 @@ class RecordFailedLogin
                 401,
                 $this->username($event->credentials),
                 country: $this->activity->country($request),
+                userAgent: $request->userAgent(),
             );
         } catch (Throwable) {
             //

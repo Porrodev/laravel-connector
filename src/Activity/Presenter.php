@@ -3,7 +3,11 @@
 namespace Porro\Laravel\Activity;
 
 use Carbon\Carbon;
+use Porro\Core\Activity\Cidr;
+use Porro\Core\Activity\Countries;
 use Porro\Core\Activity\Entry;
+use Porro\Core\Activity\FlaggedIp;
+use Porro\Core\Activity\IpDetails;
 use Porro\Core\Activity\NginxBlocklist;
 use Porro\Core\Activity\NginxStatus;
 use Porro\Core\Activity\ProtectedRanges;
@@ -141,6 +145,98 @@ class Presenter
             'enforcement' => $blocking['enforcement'],
             'behindCloudflare' => $blocking['cloudflare']['configured'] || ($remoteAddr !== null && $this->activity->ranges()->isCloudflare($remoteAddr)),
             'sharedCache' => ! in_array(config('cache.default'), ['file', 'array', 'apc'], true),
+        ];
+    }
+
+    /** How each badge reads, and how worrying it is. */
+    public const BADGES = [
+        IpDetails::TOR => ['label' => 'Tor exit', 'tone' => 'danger'],
+        IpDetails::SPAMHAUS => ['label' => 'Spamhaus DROP', 'tone' => 'danger'],
+        IpDetails::FAKE_CRAWLER => ['label' => 'Fake crawler', 'tone' => 'danger'],
+        IpDetails::HOSTING => ['label' => 'Hosting provider', 'tone' => 'warning'],
+        IpDetails::SCANNER => ['label' => 'Research scanner', 'tone' => 'neutral'],
+    ];
+
+    /**
+     * The IP details drawer: who it is, what it did here in the last 48
+     * hours, and what can be done about it.
+     *
+     * @param  array<string, mixed>|null  $reputation  AbuseIPDB's answer, when someone asked for it
+     * @return array<string, mixed>
+     */
+    public function ip(string $ip, ?array $reputation = null): array
+    {
+        $ip = (string) Cidr::parse($ip);
+        $flagged = null;
+
+        foreach ($this->activity->summary(48)->flagged as $candidate) {
+            if ($candidate->ip === $ip) {
+                $flagged = $candidate;
+            }
+        }
+
+        $details = $this->activity->details($ip, $flagged?->userAgent);
+        $badges = array_values(array_map(fn ($b) => (self::BADGES[$b] ?? ['label' => $b, 'tone' => 'neutral']) + ['key' => $b], $details['badges']));
+
+        foreach ($details['risks'] as $risk) {
+            $badges[] = ['key' => 'risk', 'label' => "Cloudflare: {$risk}", 'tone' => 'danger'];
+        }
+
+        $range = Cidr::parse($ip)->isV4() ? (string) Cidr::parse($ip.'/24') : null;
+
+        return [
+            'ip' => $ip,
+            'country' => self::country($details['country'] ?? ($flagged?->country)),
+            'badges' => $badges,
+            'network' => array_filter([
+                'Network' => trim(($details['network'] ?? '').($details['asn'] ? ' · AS'.$details['asn'] : '')) ?: null,
+                'Type' => match ($details['network_type'] ?? null) {
+                    'hosting_provider' => __('Hosting provider'),
+                    'isp' => __('Internet provider'),
+                    'organization' => __('Organisation'),
+                    default => null,
+                },
+                'Hostname' => $details['hostname'] ? $details['hostname'].' · '.__('verified') : null,
+                'Claims to be' => $details['crawler'] ? ucfirst($details['crawler']).(in_array(IpDetails::FAKE_CRAWLER, $details['badges'], true) ? ' · '.__('not really') : ' · '.__('verified')) : null,
+                'User agent' => $flagged?->userAgent,
+            ]),
+            'activity' => $flagged ? $this->did($flagged) : null,
+            'blocked' => $this->isBlocked($ip),
+            'safelisted' => $this->activity->blocklist()->isSafelisted($ip),
+            // A whole /24 only for hosting networks: on an ISP it would catch neighbours.
+            'range' => $range && ($details['network_type'] ?? null) === 'hosting_provider' ? $range : null,
+            'reason' => $flagged ? __('Flagged: :signals', ['signals' => implode(', ', array_map(fn ($s, $n) => (self::SIGNALS[$s] ?? $s)." ×{$n}", array_keys($flagged->signals()), $flagged->signals()))]) : __('Blocked from IP details'),
+            'reputation' => $reputation,
+            'canCheckReputation' => trim((string) config('porro.activity.abuseipdb_key')) !== '',
+            'sources' => $details['sources'],
+            'fetched' => Carbon::createFromTimestamp((int) $details['fetched_at'])->diffForHumans(),
+            'attribution' => in_array('DB-IP', $details['sources'], true) ? ['text' => Countries::ATTRIBUTION, 'url' => Countries::ATTRIBUTION_URL] : null,
+        ];
+    }
+
+    /**
+     * Signals per hour over 48 hours, and the last requests.
+     *
+     * @return array<string, mixed>
+     */
+    private function did(FlaggedIp $ip): array
+    {
+        $hours = [];
+
+        for ($i = 47; $i >= 0; $i--) {
+            $hours[] = (int) ($ip->hourly[gmdate('YmdH', time() - $i * 3600)] ?? 0);
+        }
+
+        return [
+            'hours' => $hours,
+            'peak' => max(1, ...$hours),
+            'first' => $ip->recent ? Carbon::createFromTimestamp((int) $ip->recent[array_key_last($ip->recent)][3])->diffForHumans() : null,
+            'requests' => array_map(fn ($r) => [
+                'method' => (string) $r[0],
+                'path' => (string) $r[1],
+                'status' => (int) $r[2],
+                'time' => Carbon::createFromTimestamp((int) $r[3])->format('H:i'),
+            ], $ip->recent),
         ];
     }
 

@@ -43,6 +43,35 @@ class PageController extends Controller
         return $this->page($request, 'activity');
     }
 
+    /**
+     * IP details: who it is, what it did here, and what can be done.
+     */
+    public function ip(Request $request, string $ip): View
+    {
+        abort_unless(filter_var($ip, FILTER_VALIDATE_IP) !== false, 404);
+
+        $reputation = session('reputation');
+
+        return $this->page($request, 'ip', [
+            'details' => $this->presenter->ip($ip, is_array($reputation) && ($reputation['ip'] ?? null) === $ip ? $reputation : null),
+        ]);
+    }
+
+    /**
+     * AbuseIPDB, on request only: it sends the IP to AbuseIPDB.
+     */
+    public function reputation(Request $request, string $ip): RedirectResponse
+    {
+        abort_unless(filter_var($ip, FILTER_VALIDATE_IP) !== false, 404);
+        abort_unless(Authorize::canManage($request), 403);
+
+        $result = $this->activity->reputation($ip);
+
+        return $result === null
+            ? back()->with('error', __('AbuseIPDB couldn’t be reached just now, or the key was refused.'))
+            : back()->with('reputation', $result + ['ip' => $ip]);
+    }
+
     public function blocking(Request $request): View
     {
         return $this->page($request, 'blocking', $this->presenter->blocking() + [

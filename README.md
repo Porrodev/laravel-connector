@@ -66,6 +66,14 @@ Works without a Porro account. IP addresses stay on the site.
   - Behind Cloudflare, the visitor's real IP is used and Cloudflare itself is never blocked.
 - **Always protected:** Cloudflare, Laravel Forge and its health checks, private ranges, your safelist and `porro.blocklist.protected`. Wide ranges and your own IP are refused too.
 - **Country:** behind Cloudflare it comes from the request for free. Otherwise a free [DB-IP](https://db-ip.com) country file is downloaded monthly into `storage/porro`.
+- **IP details:** click an IP on the Activity tab (`/porro/activity/{ip}`). Results are cached a day.
+  - **Who it is:**
+    - country, network and its type, and Cloudflare's risk categories, when Cloudflare is set up (Intel if the token has **Account → Intel → Read**, otherwise Radar)
+    - a reverse-DNS hostname, kept only when it resolves back to the same IP
+    - badges for Tor exits, Spamhaus DROP, hosting providers, fake Googlebots and research scanners
+  - **What it did here:** activity over the last 48 hours and its last requests.
+  - **Actions:** block it, block its /24 (offered only for hosting networks), or safelist it.
+  - **Reputation:** with `PORRO_ABUSEIPDB_KEY`, a button checks AbuseIPDB. That's the one lookup that sends the IP anywhere, so it only runs when clicked, and only for people who can manage the blocklist.
 - **Cloudflare WAF mode**, for sites behind Cloudflare. Blocked IPs are stopped at Cloudflare's edge, before they reach the server.
   - **Token:** create a Cloudflare API token with **Account Filter Lists Edit**, **Zone WAF Edit** and **Zone Read**, and set `PORRO_CLOUDFLARE_TOKEN`. The token stays in the environment, never the database.
   - **Connect:** run `php artisan porro:cloudflare connect`. It finds the zone serving `APP_URL` (or `PORRO_CLOUDFLARE_HOST`) and creates or reuses the account's `porro_blocklist` IP List. It then adds one custom rule blocking that list **next to your existing rules**, never replacing them.
@@ -121,6 +129,7 @@ Content, customer or user data, environment values or secrets. Run `php artisan 
 | `PORRO_NGINX_PATH` | `storage/porro/nginx-blocklist.conf` | Where the deny file goes |
 | `PORRO_CLOUDFLARE_TOKEN` | | Cloudflare API token for WAF mode |
 | `PORRO_CLOUDFLARE_HOST` | `APP_URL`'s host | The host whose Cloudflare zone gets the rule |
+| `PORRO_ABUSEIPDB_KEY` | | AbuseIPDB key, for the reputation check on IP details |
 | `PORRO_PAGE` | unset | The /porro page: unset means on, except alongside the Statamic or Filament connector |
 | `PORRO_PATH` | `porro` | Where the page lives |
 

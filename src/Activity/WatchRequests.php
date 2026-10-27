@@ -54,7 +54,7 @@ class WatchRequests
             $category = $this->activity->probes()->match($path);
 
             if ($category !== null) {
-                $recorder->record($ip, Recorder::PROBE, $method, $path, $status, country: $country);
+                $recorder->record($ip, Recorder::PROBE, $method, $path, $status, country: $country, userAgent: $request->userAgent());
 
                 if (Probes::exposes($category) && $status >= 200 && $status < 300) {
                     $recorder->exposed($ip, $path, $status);
@@ -64,9 +64,9 @@ class WatchRequests
             }
 
             if ($status === 404) {
-                $recorder->record($ip, Recorder::NOT_FOUND, $method, $path, $status, country: $country);
+                $recorder->record($ip, Recorder::NOT_FOUND, $method, $path, $status, country: $country, userAgent: $request->userAgent());
             } elseif ($method === 'POST' && ! $request->is(...$this->ignoredPosts())) {
-                $recorder->record($ip, Recorder::POST_FLOOD, $method, $path, $status, country: $country);
+                $recorder->record($ip, Recorder::POST_FLOOD, $method, $path, $status, country: $country, userAgent: $request->userAgent());
             }
         } catch (Throwable) {
             //

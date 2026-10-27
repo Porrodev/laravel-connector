@@ -131,6 +131,8 @@ class PorroServiceProvider extends ServiceProvider
             ->group(function () {
                 Route::get('/', [PageController::class, 'health'])->name('health');
                 Route::get('activity', [PageController::class, 'activity'])->name('activity');
+                Route::get('activity/{ip}', [PageController::class, 'ip'])->name('ip')->where('ip', '[0-9A-Fa-f:.]+');
+                Route::post('activity/{ip}/reputation', [PageController::class, 'reputation'])->name('reputation')->where('ip', '[0-9A-Fa-f:.]+');
                 Route::get('blocking', [PageController::class, 'blocking'])->name('blocking');
                 Route::get('blocking/nginx', [PageController::class, 'nginx'])->name('nginx');
                 Route::post('refresh', [PageController::class, 'refresh'])->name('refresh');
