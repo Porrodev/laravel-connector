@@ -50,20 +50,18 @@ php artisan porro:cloudflare connect</pre>
         <div class="row">
             <div class="grow">
                 <span class="title">nginx</span>
-                <span class="chip {{ $enforcement['nginx'] && $enforcement['production'] && $enforcement['nginxWritten'] ? 'on' : '' }}">
+                <span class="chip {{ $enforcement['nginx'] && $enforcement['servers'] && collect($enforcement['servers'])->every('ok') ? 'on' : '' }}">
                     @if (! $enforcement['nginx']) {{ __('not set up') }}
                     @elseif (! $enforcement['production']) {{ __('production only') }}
                     @elseif ($enforcement['nginxWritten']) {{ __('written :ago', ['ago' => $enforcement['nginxWritten']]) }}
                     @else {{ __('waiting for the first sync') }}
                     @endif
                 </span>
-                @if ($enforcement['nginx'])
-                    <div class="small">{{ __('On each server, include the file in the site’s nginx config (Forge: Site → Edit Nginx Configuration, inside server { }), real IP lines first when behind Cloudflare:') }}</div>
-                    <pre>{{ $enforcement['realIp'] }}{{ $enforcement['include'] }}</pre>
-                    <div class="small" style="margin-top: 8px">{{ __('Then reload nginx when the list changes: a scheduled job as root, every minute (Forge: Server → Scheduler):') }}</div>
-                    <pre>{{ $enforcement['reload'] }}</pre>
+                @php($loaded = collect($enforcement['servers'])->where('ok', true)->count())
+                @if ($enforcement['servers'])
+                    <div class="small">{{ trans_choice(':loaded of :count server loaded|:loaded of :count servers loaded', count($enforcement['servers']), ['loaded' => $loaded, 'count' => count($enforcement['servers'])]) }} · <a href="{{ route('porro.nginx') }}">{{ __('Setup and servers') }} →</a></div>
                 @else
-                    <div class="small">{{ __('For sites not behind Cloudflare: set PORRO_BLOCK_NGINX=true and this page shows the two one-time steps for each server.') }}</div>
+                    <div class="small">{{ __('For sites not behind Cloudflare, or as well as it. Two one-time steps on each server.') }} <a href="{{ route('porro.nginx') }}">{{ __('Set up nginx') }} →</a></div>
                 @endif
             </div>
         </div>

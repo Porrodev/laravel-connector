@@ -93,7 +93,7 @@
         <nav class="tabs" aria-label="{{ __('Porro') }}">
             <a href="{{ route('porro.health') }}" @if ($tab === 'health') aria-current="page" @endif>{{ __('Site health') }}</a>
             <a href="{{ route('porro.activity') }}" @if ($tab === 'activity') aria-current="page" @endif>{{ __('Activity') }}</a>
-            <a href="{{ route('porro.blocking') }}" @if ($tab === 'blocking') aria-current="page" @endif>{{ __('Blocking') }}</a>
+            <a href="{{ route('porro.blocking') }}" @if (in_array($tab, ['blocking', 'nginx'], true)) aria-current="page" @endif>{{ __('Blocking') }}</a>
         </nav>
         <a class="back" href="{{ $backUrl }}">{{ __('Back to app') }} ↗</a>
     </header>

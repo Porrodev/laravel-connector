@@ -5,6 +5,7 @@ namespace Porro\Laravel\Commands;
 use Illuminate\Console\Command;
 use Porro\Core\Activity\NginxBlocklist;
 use Porro\Laravel\Activity\Activity;
+use Porro\Laravel\Activity\NginxServers;
 use Throwable;
 
 class BlocklistSyncCommand extends Command
@@ -13,7 +14,7 @@ class BlocklistSyncCommand extends Command
 
     protected $description = 'Tidy the blocklist and write the nginx deny file (runs every minute when PORRO_BLOCK_NGINX is on)';
 
-    public function handle(Activity $activity): int
+    public function handle(Activity $activity, NginxServers $servers): int
     {
         foreach ($activity->maintain() as $removed) {
             $this->components->twoColumnDetail("Removed {$removed['cidr']}", $removed['why']);
@@ -40,6 +41,10 @@ class BlocklistSyncCommand extends Command
         }
 
         $this->components->info($changed ? "Wrote {$path}" : 'The nginx file is up to date.');
+
+        // This server's progress, for the setup page.
+        $status = $servers->record();
+        $this->components->twoColumnDetail(NginxServers::name(), NginxServers::LABELS[$status['state']] ?? $status['state']);
 
         return self::SUCCESS;
     }

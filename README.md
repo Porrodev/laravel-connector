@@ -72,7 +72,10 @@ Works without a Porro account. IP addresses stay on the site.
   - **Syncing:** it syncs after every change and on the scheduled task. Only production syncs, and only to the zone it connected to, so a local or staging copy can't push its list.
   - **Shared list:** the list is shared by every site on the Cloudflare account. Each site only adds and removes items tagged with its own id, and an IP another site already blocked is left alone.
   - **Commands:** `porro:cloudflare` shows the status. `porro:cloudflare sync` syncs now, and `porro:cloudflare disconnect` removes this site's items and the rule.
-- **nginx mode** (`PORRO_BLOCK_NGINX=true`):
+- **nginx mode** (`PORRO_BLOCK_NGINX=true`). `/porro/blocking/nginx` walks through setup with this site's real paths. It also lists every server and how far each has got: no file yet, include missing, waiting for reload, or loaded.
+  - **How a server is checked:** each server checks itself every minute by looking, never by running anything. It confirms the file exists, that a readable nginx config includes it, and that the reload job has run since the last change.
+  - **Seeing every server:** the list needs a cache the servers share, such as Redis or the database.
+  - **The details:**
   - `porro:blocklist-sync` writes a `deny` file every minute on each server, in production only.
   - Include it in the site's nginx config and reload nginx when it changes.
   - Without nginx mode, there's no extra scheduled task, so hosts that scale to zero can still sleep.

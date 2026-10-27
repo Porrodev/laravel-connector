@@ -50,6 +50,21 @@ class PageController extends Controller
         ]);
     }
 
+    /**
+     * Setting up nginx: the two one-time steps for each server, and how far
+     * each server has got.
+     */
+    public function nginx(Request $request): View
+    {
+        $blocking = $this->presenter->blocking();
+
+        return $this->page($request, 'nginx', [
+            'enforcement' => $blocking['enforcement'],
+            'behindCloudflare' => $blocking['cloudflare']['configured'] || $this->activity->ranges()->isCloudflare((string) $request->server('REMOTE_ADDR')),
+            'sharedCache' => ! in_array(config('cache.default'), ['file', 'array', 'apc'], true),
+        ]);
+    }
+
     public function refresh(): RedirectResponse
     {
         $this->health->get(fresh: true);
