@@ -59,6 +59,8 @@
         .stat { background: var(--raised); border-radius: 8px; padding: 12px 14px; }
         .stat b { display: block; color: var(--primary); font-size: 22px; font-weight: 600; line-height: 1.2; }
         .chip { display: inline-block; font: 11.5px var(--mono); border: 1px solid var(--control); border-radius: 4px; padding: 0 6px; margin: 1px 2px 1px 0; color: var(--body); }
+        .filters a.chip { text-decoration: none; padding: 2px 8px; }
+        .filters a.chip[aria-current] { background: var(--raised); color: var(--primary); border-color: var(--primary); }
         .chip.on { border-color: var(--clear); color: var(--clear); }
         .chip.off { border-color: var(--critical); color: var(--critical); }
         .table { width: 100%; border-collapse: collapse; }
@@ -110,7 +112,7 @@
         <nav class="tabs" aria-label="{{ __('Porro') }}">
             <a href="{{ route('porro.health') }}" @if ($tab === 'health') aria-current="page" @endif>{{ __('Site health') }}</a>
             <a href="{{ route('porro.activity') }}" @if (in_array($tab, ['activity', 'ip'], true)) aria-current="page" @endif>{{ __('Activity') }}</a>
-            <a href="{{ route('porro.blocking') }}" @if (in_array($tab, ['blocking', 'nginx'], true)) aria-current="page" @endif>{{ __('Blocking') }}</a>
+            <a href="{{ route('porro.blocking') }}" @if (in_array($tab, ['blocking', 'nginx', 'list'], true)) aria-current="page" @endif>{{ __('Blocking') }}</a>
         </nav>
         <a class="back" href="{{ $backUrl }}">{{ __('Back to app') }} ↗</a>
     </header>

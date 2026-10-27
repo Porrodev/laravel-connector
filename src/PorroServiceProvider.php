@@ -135,6 +135,7 @@ class PorroServiceProvider extends ServiceProvider
                 Route::post('activity/{ip}/reputation', [PageController::class, 'reputation'])->name('reputation')->where('ip', '[0-9A-Fa-f:.]+');
                 Route::get('blocking', [PageController::class, 'blocking'])->name('blocking');
                 Route::get('blocking/nginx', [PageController::class, 'nginx'])->name('nginx');
+                Route::get('blocking/{list}', [PageController::class, 'list'])->name('list')->whereIn('list', ['blocklist', 'safelist']);
                 Route::post('refresh', [PageController::class, 'refresh'])->name('refresh');
                 Route::post('blocking/block', [PageController::class, 'block'])->name('block');
                 Route::post('blocking/unblock', [PageController::class, 'unblock'])->name('unblock');

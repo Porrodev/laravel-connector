@@ -163,3 +163,56 @@ describe('pages', function () {
         $this->post('/porro/refresh')->assertRedirect('/porro')->assertSessionHas('success', 'Checked again.');
     });
 });
+
+describe('the full lists', function () {
+    beforeEach(function () {
+        allowOps();
+        $this->actingAs(opsUser());
+
+        $rows = [];
+        for ($i = 1; $i <= 60; $i++) {
+            $rows[] = (new Entry("203.0.113.{$i}", $i % 2 ? 'Probing for .env' : 'Failed logins', $i % 3 ? Entry::SUGGESTED : Entry::MANUAL, 1000 + $i, $i <= 5 ? time() + 3 * 86400 : null, $i === 7 ? 'Daniel' : 'Ops'))->toArray();
+        }
+        $rows[] = (new Entry('198.51.100.0/24', 'Scanner network', Entry::MANUAL, 5000))->toArray();
+        DB::table('porro_blocklist')->insert($rows);
+    });
+
+    it('shows the newest ten on Blocking, and links to the rest', function () {
+        $html = $this->get('/porro/blocking')->assertSee('Show all 61, with search')->assertSee(route('porro.list', 'blocklist'))->getContent();
+
+        expect(substr_count($html, 'name="ip" value="203.0.113.'))->toBe(9)
+            ->and($html)->toContain('198.51.100.0/24')
+            ->and($html)->not->toContain('value="203.0.113.1"');
+    });
+
+    it('pages through the whole list, newest first, fifty at a time', function () {
+        $first = $this->get('/porro/blocking/blocklist')->assertOk()->assertSee('61 entries')->assertSee('Page 1 of 2')->assertSee('Older')->getContent();
+
+        expect(substr_count($first, 'name="ip" value='))->toBe(50)
+            ->and(strpos($first, '198.51.100.0/24'))->toBeLessThan(strpos($first, '203.0.113.60'));
+
+        $this->get('/porro/blocking/blocklist?page=2')->assertSee('Page 2 of 2')->assertSee('value="203.0.113.1"', false)->assertSee('Newer');
+    });
+
+    it('finds the entries covering an IP, or matching a reason or who added them', function () {
+        $this->get('/porro/blocking/blocklist?q=198.51.100.77')->assertSee('198.51.100.0/24')->assertDontSee('203.0.113.');
+        expect(substr_count($this->get('/porro/blocking/blocklist?q=failed')->getContent(), 'name="ip" value='))->toBe(30);
+        $this->get('/porro/blocking/blocklist?q=daniel')->assertSee('value="203.0.113.7"', false)->assertDontSee('value="203.0.113.8"', false);
+        $this->get('/porro/blocking/blocklist?q=nothing-like-this')->assertSee('Nothing matches.');
+    });
+
+    it('filters by source and by what’s expiring soon, with counts', function () {
+        $this->get('/porro/blocking/blocklist?filter=expiring')->assertSee('Expiring within 7 days 5')->assertSee('value="203.0.113.5"', false)->assertDontSee('value="203.0.113.6"', false);
+        expect(substr_count($this->get('/porro/blocking/blocklist?filter=manual')->getContent(), 'name="ip" value='))->toBe(21);
+        $this->get('/porro/blocking/blocklist?filter=nonsense')->assertOk()->assertSee('Page 1 of 2');
+    });
+
+    it('ignores a query string that isn’t plain values', function () {
+        $this->get('/porro/blocking/blocklist?q[]=x&filter[]=manual&page[]=2')->assertOk()->assertSee('Page 1 of 2');
+    });
+
+    it('has a safelist page too, and nothing else', function () {
+        $this->get('/porro/blocking/safelist')->assertOk()->assertSee('Nothing is safelisted.');
+        $this->get('/porro/blocking/other')->assertNotFound();
+    });
+});
