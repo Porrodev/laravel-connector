@@ -66,6 +66,12 @@ Works without a Porro account. IP addresses stay on the site.
   - Behind Cloudflare, the visitor's real IP is used and Cloudflare itself is never blocked.
 - **Always protected:** Cloudflare, Laravel Forge and its health checks, private ranges, your safelist and `porro.blocklist.protected`. Wide ranges and your own IP are refused too.
 - **Country:** behind Cloudflare it comes from the request for free. Otherwise a free [DB-IP](https://db-ip.com) country file is downloaded monthly into `storage/porro`.
+- **Cloudflare WAF mode**, for sites behind Cloudflare. Blocked IPs are stopped at Cloudflare's edge, before they reach the server.
+  - **Token:** create a Cloudflare API token with **Account Filter Lists Edit**, **Zone WAF Edit** and **Zone Read**, and set `PORRO_CLOUDFLARE_TOKEN`. The token stays in the environment, never the database.
+  - **Connect:** run `php artisan porro:cloudflare connect`. It finds the zone serving `APP_URL` (or `PORRO_CLOUDFLARE_HOST`) and creates or reuses the account's `porro_blocklist` IP List. It then adds one custom rule blocking that list **next to your existing rules**, never replacing them.
+  - **Syncing:** it syncs after every change and on the scheduled task. Only production syncs, and only to the zone it connected to, so a local or staging copy can't push its list.
+  - **Shared list:** the list is shared by every site on the Cloudflare account. Each site only adds and removes items tagged with its own id, and an IP another site already blocked is left alone.
+  - **Commands:** `porro:cloudflare` shows the status. `porro:cloudflare sync` syncs now, and `porro:cloudflare disconnect` removes this site's items and the rule.
 - **nginx mode** (`PORRO_BLOCK_NGINX=true`):
   - `porro:blocklist-sync` writes a `deny` file every minute on each server, in production only.
   - Include it in the site's nginx config and reload nginx when it changes.
@@ -96,6 +102,7 @@ Content, customer or user data, environment values or secrets. Run `php artisan 
 | `porro:status` | Shows what the next report contains (`--json` for the raw report) |
 | `porro:block <ip>` | Blocks an IP or range (`--reason`, `--days`; `--remove` unblocks) |
 | `porro:blocklist-sync` | Tidies the blocklist and writes the nginx deny file |
+| `porro:cloudflare [status\|connect\|sync\|disconnect]` | Blocks at Cloudflare's edge |
 
 ## Config
 
@@ -109,6 +116,8 @@ Content, customer or user data, environment values or secrets. Run `php artisan 
 | `PORRO_BLOCK_APP` | `true` | Turn blocked IPs away with a 403 |
 | `PORRO_BLOCK_NGINX` | `false` | Write the nginx deny file every minute |
 | `PORRO_NGINX_PATH` | `storage/porro/nginx-blocklist.conf` | Where the deny file goes |
+| `PORRO_CLOUDFLARE_TOKEN` | | Cloudflare API token for WAF mode |
+| `PORRO_CLOUDFLARE_HOST` | `APP_URL`'s host | The host whose Cloudflare zone gets the rule |
 | `PORRO_PAGE` | unset | The /porro page: unset means on, except alongside the Statamic or Filament connector |
 | `PORRO_PATH` | `porro` | Where the page lives |
 

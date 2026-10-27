@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Porro\Core\CrontabIo;
 use Porro\Laravel\Activity\Activity;
+use Porro\Laravel\Activity\CloudflareMode;
 use Porro\Laravel\Activity\RecordFailedLogin;
 use Porro\Laravel\Activity\WatchRequests;
 use Porro\Laravel\Collectors\BackupCollector;
@@ -18,6 +19,7 @@ use Porro\Laravel\Collectors\HealthCollector;
 use Porro\Laravel\Collectors\LaravelCollector;
 use Porro\Laravel\Commands\BlockCommand;
 use Porro\Laravel\Commands\BlocklistSyncCommand;
+use Porro\Laravel\Commands\CloudflareCommand;
 use Porro\Laravel\Commands\ConnectCommand;
 use Porro\Laravel\Commands\CronCommand;
 use Porro\Laravel\Commands\ReportCommand;
@@ -34,6 +36,7 @@ class PorroServiceProvider extends ServiceProvider
 
         $this->app->singleton(Reporter::class);
         $this->app->singleton(Activity::class);
+        $this->app->singleton(CloudflareMode::class);
         $this->app->bind(CrontabIo::class);
         $this->app->tag([LaravelCollector::class, BackupCollector::class, HealthCollector::class], 'porro.collectors');
     }
@@ -50,7 +53,7 @@ class PorroServiceProvider extends ServiceProvider
         }
 
         $this->publishes([__DIR__.'/../config/porro.php' => config_path('porro.php')], 'porro-config');
-        $this->commands([BlockCommand::class, BlocklistSyncCommand::class, ConnectCommand::class, CronCommand::class, ReportCommand::class, StatusCommand::class]);
+        $this->commands([BlockCommand::class, BlocklistSyncCommand::class, CloudflareCommand::class, ConnectCommand::class, CronCommand::class, ReportCommand::class, StatusCommand::class]);
 
         // nginx mode only: every server writes its own deny file, so this runs
         // every minute on each (never onOneServer). Otherwise the blocklist is

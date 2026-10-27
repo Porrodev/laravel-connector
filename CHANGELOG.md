@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Cloudflare WAF mode:** `PORRO_CLOUDFLARE_TOKEN` and `php artisan porro:cloudflare connect` block IPs at Cloudflare's edge, through the account's `porro_blocklist` list and a rule added next to the zone's own rules.
+  - **When it syncs:** after every change (once the response has gone) and on the scheduled task.
+  - **Where:** production only, and only to the connected zone.
+  - **Status:** the `/porro` Blocking page shows whether it's connected and when it last synced, plus any error.
 - **The `/porro` page**, like Horizon, with Site health, Activity and Blocking tabs.
   - **Access:** open in `local`. Elsewhere it's closed unless a `viewPorro` gate allows the user, and guests never get in. A `managePorroBlocklist` gate can narrow who changes the lists.
   - **Statamic and Filament:** it steps aside when their connector is installed (`PORRO_PAGE` overrides).

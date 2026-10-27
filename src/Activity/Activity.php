@@ -51,6 +51,8 @@ class Activity
 
     private ?Probes $probes = null;
 
+    private bool $syncQueued = false;
+
     public function __construct(private Application $app) {}
 
     public function isProduction(): bool
@@ -183,7 +185,8 @@ class Activity
                 Log::info("Porro: removed {$entry['cidr']} from the {$entry['list']}: {$entry['why']}");
             }
 
-            $this->changed();
+            Cache::forget(self::COMPILED);
+            app(CloudflareMode::class)->sync();
 
             // A few checks a day at most, so a failed download isn't retried every run.
             if ($this->recording() && Cache::add('porro:countries:checked', true, 6 * 3600)) {
@@ -202,6 +205,15 @@ class Activity
     public function changed(): void
     {
         Cache::forget(self::COMPILED);
+
+        // Cloudflare after the response, so whoever blocked doesn't wait.
+        if (! $this->syncQueued && app(CloudflareMode::class)->configured()) {
+            $this->syncQueued = true;
+            app()->terminating(function () {
+                $this->syncQueued = false;
+                app(CloudflareMode::class)->sync();
+            });
+        }
     }
 
     public function summary(int $hours = 24): Summary

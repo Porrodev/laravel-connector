@@ -23,6 +23,32 @@
         </div>
         <div class="row">
             <div class="grow">
+                <span class="title">Cloudflare WAF</span>
+                <span class="chip {{ $cloudflare['connected'] && ! $cloudflare['error'] && $cloudflare['synced'] ? 'on' : ($cloudflare['error'] ? 'off' : '') }}">
+                    @if (! $cloudflare['configured']) {{ __('not set up') }}
+                    @elseif (! $cloudflare['connected']) {{ __('token set, not connected') }}
+                    @elseif ($cloudflare['error']) {{ __('sync failed') }}
+                    @elseif (! $cloudflare['production']) {{ __('production only') }}
+                    @elseif ($cloudflare['synced']) {{ __('synced :ago', ['ago' => $cloudflare['synced']]) }}
+                    @else {{ __('waiting for the first sync') }}
+                    @endif
+                </span>
+                @if ($cloudflare['connected'])
+                    <div class="small">{{ __('Blocked at the edge, before traffic reaches the server · zone :zone · list porro_blocklist', ['zone' => $cloudflare['zone']]) }}@if ($cloudflare['result'] && $cloudflare['result']['shared']) · {{ trans_choice(':count already blocked by another site|:count already blocked by other sites', $cloudflare['result']['shared'], ['count' => $cloudflare['result']['shared']]) }}@endif</div>
+                    @if ($cloudflare['error'])<div class="small critical">{{ $cloudflare['error'] }}</div>@endif
+                @elseif ($cloudflare['configured'])
+                    <div class="small">{{ __('Run this on the server to find the zone, create the porro_blocklist list and add the rule next to your existing ones:') }}</div>
+                    <pre>php artisan porro:cloudflare connect</pre>
+                    @if ($cloudflare['error'])<div class="small critical">{{ $cloudflare['error'] }}</div>@endif
+                @else
+                    <div class="small">{{ __('Blocks at Cloudflare’s edge for sites behind it. Create a token with Account Filter Lists Edit, Zone WAF Edit and Zone Read, then:') }}</div>
+                    <pre>PORRO_CLOUDFLARE_TOKEN=your-token-here
+php artisan porro:cloudflare connect</pre>
+                @endif
+            </div>
+        </div>
+        <div class="row">
+            <div class="grow">
                 <span class="title">nginx</span>
                 <span class="chip {{ $enforcement['nginx'] && $enforcement['production'] && $enforcement['nginxWritten'] ? 'on' : '' }}">
                     @if (! $enforcement['nginx']) {{ __('not set up') }}

@@ -49,6 +49,12 @@ return [
         'nginx' => (bool) env('PORRO_BLOCK_NGINX', false),
         'nginx_path' => env('PORRO_NGINX_PATH', storage_path('porro/nginx-blocklist.conf')),
 
+        // Block at Cloudflare's edge: a token with Account Filter Lists Edit,
+        // Zone WAF Edit and Zone Read. Then php artisan porro:cloudflare connect.
+        // Only production syncs. The host defaults to APP_URL's.
+        'cloudflare_token' => env('PORRO_CLOUDFLARE_TOKEN'),
+        'cloudflare_host' => env('PORRO_CLOUDFLARE_HOST'),
+
         // Never blocked or flagged, and can't be removed in the panel:
         // ['203.0.113.7', ['cidr' => '198.51.100.0/24', 'note' => 'Office']]
         'safelist' => [],
