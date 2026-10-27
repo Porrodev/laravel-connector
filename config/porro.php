@@ -37,6 +37,10 @@ return [
         // Paths this app really serves that look like scanner paths.
         'served' => [],
 
+        // AbuseIPDB's reputation check on the IP details page. Sends the IP to
+        // AbuseIPDB, so it only runs when someone clicks. Free keys: 1,000/day.
+        'abuseipdb_key' => env('PORRO_ABUSEIPDB_KEY'),
+
         // POSTs that are never a form flood: app chatter, not forms.
         'ignore_posts' => ['livewire/*', 'livewire-*/*', 'broadcasting/*', 'telescope/*', 'horizon/*', 'nova-api/*', '_debugbar/*'],
     ],

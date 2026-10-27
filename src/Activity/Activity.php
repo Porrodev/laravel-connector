@@ -8,15 +8,19 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Telescope\Telescope;
+use Porro\Core\Activity\AbuseIpdb;
 use Porro\Core\Activity\Blocklist;
 use Porro\Core\Activity\Cidr;
 use Porro\Core\Activity\ClientIp;
+use Porro\Core\Activity\CloudflareError;
 use Porro\Core\Activity\Countries;
 use Porro\Core\Activity\Entry;
 use Porro\Core\Activity\FlaggedIp;
+use Porro\Core\Activity\IpDetails;
 use Porro\Core\Activity\IpSet;
 use Porro\Core\Activity\Probes;
 use Porro\Core\Activity\ProtectedRanges;
+use Porro\Core\Activity\Ranking;
 use Porro\Core\Activity\Recorder;
 use Porro\Core\Activity\Summary;
 use Porro\Core\Health\Issue;
@@ -151,6 +155,60 @@ class Activity
     }
 
     /**
+     * Who's behind $ip: Cloudflare (when it's set up), DB-IP, the Tor and
+     * Spamhaus lists, and confirmed reverse DNS. Cached a day per IP.
+     *
+     * @return array<string, mixed>
+     */
+    public function details(string $ip, ?string $userAgent = null): array
+    {
+        // Bound in tests, so they never wait on real DNS.
+        $dns = app()->bound('porro.reverse-dns') ? app('porro.reverse-dns') : null;
+
+        return (new IpDetails(HttpSources::make(), $this->countries(), $this->network(...), $dns))->lookup($ip, $userAgent);
+    }
+
+    /**
+     * AbuseIPDB's view of $ip, when PORRO_ABUSEIPDB_KEY is set. This one
+     * sends the IP to AbuseIPDB, so only call it when someone asks.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function reputation(string $ip): ?array
+    {
+        return (new AbuseIpdb(HttpSources::make(), (string) config('porro.activity.abuseipdb_key')))->check($ip);
+    }
+
+    /**
+     * Cloudflare's view of an IP's network. Intel needs a permission most
+     * tokens won't have; once it's refused, Radar for a day.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function network(string $ip): ?array
+    {
+        $cloudflare = app(CloudflareMode::class);
+
+        if (! $cloudflare->configured()) {
+            return null;
+        }
+
+        $account = $cloudflare->state()['connection']['account'] ?? null;
+
+        if ($account && ! Cache::get('porro:cloudflare:no-intel')) {
+            try {
+                return $cloudflare->client()->intel((string) $account, $ip) + ['source' => 'Cloudflare IP Intelligence'];
+            } catch (CloudflareError $e) {
+                if (in_array($e->status, [401, 403], true)) {
+                    Cache::put('porro:cloudflare:no-intel', true, 86400);
+                }
+            }
+        }
+
+        return $cloudflare->client()->radar($ip) + ['network_type' => null, 'risks' => [], 'source' => 'Cloudflare Radar'];
+    }
+
+    /**
      * Why $ip is blocked, or null. Protected ranges and the safelist win.
      */
     public function blocked(string $ip): ?string
@@ -228,7 +286,20 @@ class Activity
      */
     public function flagged(Summary $summary): array
     {
-        return $this->countries()->fill($summary->flagged);
+        // What's known without waiting: the Tor and Spamhaus lists, and any
+        // lookup already cached from someone opening an IP's details.
+        $details = new IpDetails(HttpSources::make(), null, null, fn () => null);
+
+        return Ranking::apply(
+            $this->countries()->fill($summary->flagged),
+            function ($ip) use ($details) {
+                try {
+                    return $details->known($ip->ip, $ip->userAgent);
+                } catch (Throwable) {
+                    return ['badges' => [], 'risks' => [], 'network_type' => null];
+                }
+            },
+        );
     }
 
     /**

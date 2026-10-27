@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **IP details** at `/porro/activity/{ip}`, linked from Activity.
+  - **Shows:** country, network (Cloudflare Intel, falling back to Radar once Intel is refused), confirmed reverse DNS, and badges for Tor, Spamhaus DROP, hosting, fake crawlers and research scanners.
+  - **Also:** the last 48 hours here, block and safelist actions, and an AbuseIPDB check only on click.
+  - `Presenter::ip()` has the data for the other panels.
+- Recorded activity keeps each IP's last user agent.
+- **The activity table is ranked by what's known about each IP:** Spamhaus ×3, Tor ×1.5, Cloudflare risk ×2, and a hosting network trying passwords ×1.5. Research scanners go last, marked "Scanner, low risk". Badges show next to each IP.
 - **nginx setup page** at `/porro/blocking/nginx`: the two one-time steps with this site's real paths. The real-IP lines show first when the site is behind Cloudflare.
   - **Every server, worst first:** each one's progress is recorded by `porro:blocklist-sync` every minute. The states are no file yet, include missing, waiting for reload, or loaded.
   - **Missing real-IP lines:** it warns when a server behind Cloudflare doesn't have them.

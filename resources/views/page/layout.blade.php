@@ -80,6 +80,13 @@
         .flash.error { color: var(--critical); border-color: var(--critical); }
         .flash.success { color: var(--clear); border-color: var(--clear); }
         .note { padding: 0 16px 14px; }
+        dialog.confirm { width: min(440px, calc(100vw - 32px)); padding: 0; border: 1px solid var(--hairline); border-radius: 12px; background: var(--surface); color: var(--body); box-shadow: 0 12px 40px rgb(0 0 0 / .18); }
+        dialog.confirm::backdrop { background: rgb(20 20 19 / .35); }
+        dialog.confirm form { display: grid; gap: 8px; padding: 20px; }
+        dialog.confirm h2 { margin: 0; color: var(--primary); font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
+        dialog.confirm p { margin: 0; }
+        dialog.confirm .actions { margin-top: 12px; }
+        .btn.solid-danger { background: var(--critical); border-color: var(--critical); color: #fff; }
         @media (max-width: 640px) { .bar { padding: 12px 16px; } .tabs { order: 3; flex-basis: 100%; } }
     </style>
 </head>
@@ -92,7 +99,7 @@
         <span class="site">{{ $site }} <span class="tag">{{ $environment }}</span></span>
         <nav class="tabs" aria-label="{{ __('Porro') }}">
             <a href="{{ route('porro.health') }}" @if ($tab === 'health') aria-current="page" @endif>{{ __('Site health') }}</a>
-            <a href="{{ route('porro.activity') }}" @if ($tab === 'activity') aria-current="page" @endif>{{ __('Activity') }}</a>
+            <a href="{{ route('porro.activity') }}" @if (in_array($tab, ['activity', 'ip'], true)) aria-current="page" @endif>{{ __('Activity') }}</a>
             <a href="{{ route('porro.blocking') }}" @if (in_array($tab, ['blocking', 'nginx'], true)) aria-current="page" @endif>{{ __('Blocking') }}</a>
         </nav>
         <a class="back" href="{{ $backUrl }}">{{ __('Back to app') }} ↗</a>
@@ -106,5 +113,17 @@
 
         @yield('content')
     </main>
+    <dialog id="porro-confirm" class="confirm" aria-labelledby="porro-confirm-title">
+        <form method="dialog">
+            <h2 id="porro-confirm-title" data-porro-title></h2>
+            <p data-porro-body></p>
+            <div class="actions">
+                <button class="btn" value="cancel" data-porro-cancel>{{ __('Cancel') }}</button>
+                <button class="btn solid-danger" value="ok" data-porro-ok="danger"></button>
+                <button class="btn primary" value="ok" data-porro-ok="safe" hidden style="display: none"></button>
+            </div>
+        </form>
+    </dialog>
+    <script>{!! \Porro\Laravel\Activity\Confirm::script() !!}</script>
 </body>
 </html>
