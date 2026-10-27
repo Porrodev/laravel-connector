@@ -27,6 +27,26 @@ The Statamic and Filament connectors show this as a panel in the control panel. 
 
 When the site isn't connected, the scheduler still writes a heartbeat every `PORRO_INTERVAL` minutes so the panel can tell whether cron runs.
 
+## Suspicious activity and blocking
+
+Works without a Porro account. IP addresses stay on the site.
+
+- **Run the migration first:** `php artisan migrate` adds the `porro_blocklist` and `porro_safelist` tables.
+- **What's watched:** requests for scanner paths like `/.env`, `/.git` and `wp-login.php`, failed sign-ins on any guard, bursts of 404s and floods of form posts.
+  - Counts are kept in the cache for 48 hours.
+  - Only those requests are recorded, so normal page views cost nothing.
+  - Usernames are kept only as hashes.
+- **Production only by default.** A local or staging copy records nothing unless `PORRO_ACTIVITY=true`.
+- **Exposed files:** if `/.env` or `/.git` ever answers 200, the panel raises it as critical.
+- **Blocking:** blocked IPs get a plain 403 before the app runs, from middleware that's first in the global stack.
+  - Behind Cloudflare, the visitor's real IP is used and Cloudflare itself is never blocked.
+- **Always protected:** Cloudflare, Laravel Forge and its health checks, private ranges, your safelist and `porro.blocklist.protected`. Wide ranges and your own IP are refused too.
+- **Country:** behind Cloudflare it comes from the request for free. Otherwise a free [DB-IP](https://db-ip.com) country file is downloaded monthly into `storage/porro`.
+- **nginx mode** (`PORRO_BLOCK_NGINX=true`):
+  - `porro:blocklist-sync` writes a `deny` file every minute on each server, in production only.
+  - Include it in the site's nginx config and reload nginx when it changes.
+  - Without nginx mode, there's no extra scheduled task, so hosts that scale to zero can still sleep.
+
 ## What leaves a site
 
 - Laravel, PHP and package versions (names and versions from `composer.lock`; the list is only sent when the lock file changes)
@@ -50,6 +70,8 @@ Content, customer or user data, environment values or secrets. Run `php artisan 
 | `porro:cron` | Adds the scheduler to the crontab on its own, no key needed |
 | `porro:report` | Sends a report now (`--packages` forces the package list) |
 | `porro:status` | Shows what the next report contains (`--json` for the raw report) |
+| `porro:block <ip>` | Blocks an IP or range (`--reason`, `--days`; `--remove` unblocks) |
+| `porro:blocklist-sync` | Tidies the blocklist and writes the nginx deny file |
 
 ## Config
 
@@ -59,6 +81,12 @@ Content, customer or user data, environment values or secrets. Run `php artisan 
 | `PORRO_INTERVAL` | `15` | Minutes between reports |
 | `PORRO_ENABLED` | `true` | Turn reporting off, e.g. on staging |
 | `PORRO_FAILED_JOB_MESSAGES` | `false` | Send the first line of failed jobs' exception messages, redacted |
+| `PORRO_ACTIVITY` | unset | Record suspicious activity; unset means production only |
+| `PORRO_BLOCK_APP` | `true` | Turn blocked IPs away with a 403 |
+| `PORRO_BLOCK_NGINX` | `false` | Write the nginx deny file every minute |
+| `PORRO_NGINX_PATH` | `storage/porro/nginx-blocklist.conf` | Where the deny file goes |
+
+The safelist, extra protected ranges, thresholds and the paths your app really serves go in `config/porro.php` under `activity` and `blocklist`.
 
 ## Developing
 

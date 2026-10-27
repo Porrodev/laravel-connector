@@ -2,11 +2,11 @@
 
 namespace Porro\Laravel;
 
-use Closure;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Http;
 use InvalidArgumentException;
+use Porro\Core\Activity\Countries;
+use Porro\Core\Activity\FlaggedIp;
 use Porro\Core\Cron;
 use Porro\Core\CrontabIo;
 use Porro\Core\Health\Issue;
@@ -17,6 +17,7 @@ use Porro\Core\Health\Sources;
 use Porro\Core\LockFile;
 use Porro\Core\Report;
 use Porro\Core\SiteKey;
+use Porro\Laravel\Activity\Activity;
 use Statamic\Statamic;
 use Throwable;
 
@@ -88,6 +89,8 @@ class SiteHealth
         $health->updates(['laravel/framework' => 'Laravel'], ['laravel/framework' => Report::installedVersion('laravel/framework')]);
         $health->add($this->scheduler(), 'the scheduler');
 
+        $activity = $this->activity($health);
+
         foreach ($this->app->tagged('porro.health') as $check) {
             try {
                 $check->check($health);
@@ -102,7 +105,43 @@ class SiteHealth
                 'cron' => $this->cli().' porro:cron',
             ],
             'enabled' => (bool) config('porro.enabled'),
+            'activity' => $activity,
         ];
+    }
+
+    /**
+     * Adds suspicious activity to the issues, and returns what the
+     * Activity section shows: totals, flagged IPs with a rough country,
+     * and how many entries each list has.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function activity(Checks $health): ?array
+    {
+        try {
+            $activity = $this->app->make(Activity::class);
+            $summary = $activity->summary();
+
+            foreach ($activity->issues($summary) as $issue) {
+                $health->add($issue);
+            }
+
+            $health->add(null, 'suspicious activity');
+            $list = $activity->blocklist();
+            $countries = $activity->countries();
+
+            return [
+                'recording' => $activity->recording(),
+                'hours' => $summary->hours,
+                'totals' => $summary->totals,
+                'flagged' => array_map(fn (FlaggedIp $ip) => $ip->toArray(), $activity->flagged($summary)),
+                'blocked' => count($list->blocks()),
+                'safelisted' => count($list->safe()),
+                'countries' => $countries->available() ? ['attribution' => Countries::ATTRIBUTION, 'url' => Countries::ATTRIBUTION_URL] : null,
+            ];
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     private function scheduler(): ?Issue
@@ -149,41 +188,6 @@ class SiteHealth
 
     private function sources(): Sources
     {
-        return new Sources(
-            fn (string $key) => Cache::get($key),
-            fn (string $key, mixed $value, int $ttl) => Cache::put($key, $value, $ttl),
-            $this->transport(),
-        );
-    }
-
-    /**
-     * Laravel's HTTP client, so Http::fake() works in tests. Streamed, so
-     * it stops reading once a response is over the limit.
-     *
-     * @return Closure(string, string, array<string, string>, string|null, int, int): array{0: int, 1: string}
-     */
-    private function transport(): Closure
-    {
-        return function (string $method, string $url, array $headers, ?string $body, int $timeout, int $maxBytes = Sources::MAX_BYTES): array {
-            try {
-                $request = Http::withHeaders($headers)->timeout($timeout)->withOptions(['stream' => true]);
-
-                if ($body !== null) {
-                    $request = $request->withBody($body, $headers['Content-Type'] ?? 'application/json');
-                }
-
-                $response = $request->send($method, $url);
-                $stream = $response->toPsrResponse()->getBody();
-                $data = '';
-
-                while (! $stream->eof() && strlen($data) <= $maxBytes) {
-                    $data .= $stream->read(min(65536, $maxBytes + 1 - strlen($data)));
-                }
-
-                return [$response->status(), $data];
-            } catch (Throwable $e) {
-                return [0, $e->getMessage()];
-            }
-        };
+        return HttpSources::make();
     }
 }

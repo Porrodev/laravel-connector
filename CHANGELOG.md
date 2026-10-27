@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Suspicious activity and blocking, on `porro/php-core` 0.3.
+  - **Migration:** run `php artisan migrate` for the `porro_blocklist` and `porro_safelist` tables.
+  - **Watching:** global middleware records scanner probes, 404 bursts and form floods (production only unless `PORRO_ACTIVITY=true`). Failed logins are counted on any guard.
+  - **Blocking:** blocked IPs get a 403 before the app runs. Behind Cloudflare it uses the real visitor IP and records their country.
+  - **Panel:** `SiteHealth` adds an `activity` section and its issues, including a critical one when `/.env` or `/.git` answers 200.
+  - **Commands:** `porro:block` blocks or unblocks from the command line. `porro:blocklist-sync` writes the nginx deny file (`PORRO_BLOCK_NGINX=true`) and runs every minute only in that mode. Otherwise housekeeping runs on the existing scheduled task.
+- The HTTP client behind the panel moved to `Porro\Laravel\HttpSources`.
+
 ## 0.2.2 - 2026-10-25
 
 - Reports group the last day's failed jobs (`failed_jobs_groups`): up to five groups by job and exception class, with where it was thrown, how many, the last failure, queue and connection, so Porro can say which jobs fail and why. Exception messages stay on the site unless `PORRO_FAILED_JOB_MESSAGES` is on, and then only their first line, cut short, with emails, file paths and long numbers redacted. `porro:status` lists the groups.
