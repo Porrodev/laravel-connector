@@ -32,6 +32,7 @@ When the site isn't connected, the scheduler still writes a heartbeat every `POR
 - Laravel, PHP and package versions (names and versions from `composer.lock`; the list is only sent when the lock file changes)
 - The environment name, and whether debug mode is on (true or false, never the value of any setting)
 - Scheduler heartbeat, failed jobs in the last 24 hours, pending migrations
+- For failed jobs, up to five groups from the newest 500 in the last day: the job's name, the exception class, where it was thrown (relative to the app, e.g. `app/Jobs/SendInvoice.php:42`), how many, when the last one failed, and the queue and connection. Not the job's data or the exception message. Set `PORRO_FAILED_JOB_MESSAGES=true` to add each message's first line, cut to 160 characters, with email addresses, file paths and runs of six or more digits replaced by `[email]`, `[path]` and `[number]`. Only for the `database` and `database-uuids` failed job drivers
 - The database engine and version (e.g. MySQL 8.0.36, MariaDB 10.11.6), whether it's on the same server, and the provider if it's a known managed database. Never its host, name, user or password
 - Newest backup date from `spatie/laravel-backup` and check results from `spatie/laravel-health`, if installed
 
@@ -57,6 +58,7 @@ Content, customer or user data, environment values or secrets. Run `php artisan 
 | `PORRO_KEY` | | The site key |
 | `PORRO_INTERVAL` | `15` | Minutes between reports |
 | `PORRO_ENABLED` | unset | `true` or `false` to force reporting on or off |
+| `PORRO_FAILED_JOB_MESSAGES` | `false` | Send the first line of failed jobs' exception messages, redacted |
 
 With `PORRO_ENABLED` unset, only `APP_ENV=production` (or `prod`, `live`) reports. A local or staging copy running with the live `.env` stays quiet, so it can't overwrite the live site's state in Porro. Set `PORRO_ENABLED=true` to report from another environment on purpose. `porro:status` shows whether reporting is on and why.
 

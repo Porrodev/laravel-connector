@@ -15,4 +15,11 @@ return [
     // staging copy with the live .env stays quiet. Set true or false to override.
     'enabled' => env('PORRO_ENABLED'),
 
+    'failed_jobs' => [
+        // Send the first line of each failed job's exception message (cut to
+        // 160 characters, emails and long numbers redacted). Off by default:
+        // messages can hold customer data. Job and exception names are always sent.
+        'messages' => (bool) env('PORRO_FAILED_JOB_MESSAGES', false),
+    ],
+
 ];

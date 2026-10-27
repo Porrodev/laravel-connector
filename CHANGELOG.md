@@ -4,6 +4,10 @@
 
 - `PORRO_ENABLED` now defaults to off outside `APP_ENV=production`, so a local or staging copy with the live `.env` doesn't report as the live site. An explicit `PORRO_ENABLED=true` still reports from anywhere. `porro:status` and `porro:report` say why reporting is off.
 
+## 0.2.2 - 2026-10-25
+
+- Reports group the last day's failed jobs (`failed_jobs_groups`): up to five groups by job and exception class, with where it was thrown, how many, the last failure, queue and connection, so Porro can say which jobs fail and why. Exception messages stay on the site unless `PORRO_FAILED_JOB_MESSAGES` is on, and then only their first line, cut short, with emails, file paths and long numbers redacted. `porro:status` lists the groups.
+
 ## 0.2.1
 
 - Requires `porro/php-core` 0.2.1: requests to Porro are signed for their method and path, and the panel only hides local issues Porro has actually raised.
