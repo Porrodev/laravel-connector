@@ -5,12 +5,14 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Js;
 use Porro\Core\Activity\AbuseIpdb;
 use Porro\Core\Activity\Cloudflare;
 use Porro\Core\Activity\IpDetails;
 use Porro\Core\Activity\Recorder;
 use Porro\Laravel\Activity\Activity;
 use Porro\Laravel\Activity\CloudflareMode;
+use Porro\Laravel\Activity\Confirm;
 use Porro\Laravel\SiteHealth;
 
 uses(RefreshDatabase::class);
@@ -152,4 +154,31 @@ it('ranks the activity table by what’s known, scanners last', function () {
     // The scanner has the most (100) and still goes last.
     expect(strpos($html, '185.220.101.4'))->toBeLessThan(strpos($html, '103.75.190.11'))
         ->and(strpos($html, '103.75.190.11'))->toBeLessThan(strpos($html, '167.94.138.5'));
+});
+
+it('asks before every block and safelist, saying what will happen', function () {
+    $html = $this->get('/porro/activity/185.220.101.4')->getContent();
+
+    expect(substr_count($html, 'onsubmit="return confirm('))->toBe(3)
+        ->and($html)->toContain(Js::from(Confirm::block('185.220.101.4'))->toHtml())
+        ->and($html)->toContain(Js::from(Confirm::block('185.220.101.4', 7))->toHtml())
+        ->and($html)->toContain(Js::from(Confirm::safelist('185.220.101.4'))->toHtml());
+
+    $table = $this->get('/porro/activity')->getContent();
+    expect(substr_count($table, 'onsubmit="return confirm('))->toBe(3);
+
+    // Safelist acts straight away now it has asked.
+    $this->post('/porro/blocking/safelist', ['ip' => '185.220.101.4', 'label' => 'From the IP details page'])->assertSessionHas('success');
+    $this->get('/porro/activity/185.220.101.4')->assertSee('safelisted')->assertDontSee('onsubmit="return confirm(', false);
+});
+
+it('says how much a range block covers, and how long it lasts', function () {
+    expect(Confirm::block('185.220.101.0/24', 7))
+        ->toContain('Block 185.220.101.0/24 for 7 days?')
+        ->toContain('the 256 addresses in 185.220.101.0/24')
+        ->toContain('including any real visitors')
+        ->toContain('lifted automatically')
+        ->and(Confirm::block('185.220.101.4'))->toContain('permanently?')->toContain('until someone removes it')
+        ->and(Confirm::block('2001:db8::/48'))->toContain('the many addresses')
+        ->and(Confirm::safelist('81.2.69.142'))->toContain('never be blocked or flagged');
 });

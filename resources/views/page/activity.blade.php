@@ -51,7 +51,7 @@
                                                 @if ($ip['blocked'])
                                                     <span class="chip off">{{ __('blocked') }}</span>
                                                 @else
-                                                    <form method="POST" action="{{ route('porro.block') }}" class="inline">
+                                                    <form method="POST" action="{{ route('porro.block') }}" class="inline" onsubmit="return confirm({{ \Illuminate\Support\Js::from(\Porro\Laravel\Activity\Confirm::block($ip['ip'], 7)) }})">
                                                         @csrf
                                                         <input type="hidden" name="ip" value="{{ $ip['ip'] }}">
                                                         <input type="hidden" name="reason" value="{{ $ip['reason'] }}">
@@ -59,13 +59,18 @@
                                                         <input type="hidden" name="suggested" value="1">
                                                         <button class="btn" type="submit">{{ __('Block 7 days') }}</button>
                                                     </form>
-                                                    <form method="POST" action="{{ route('porro.block') }}" class="inline">
+                                                    <form method="POST" action="{{ route('porro.block') }}" class="inline" onsubmit="return confirm({{ \Illuminate\Support\Js::from(\Porro\Laravel\Activity\Confirm::block($ip['ip'])) }})">
                                                         @csrf
                                                         <input type="hidden" name="ip" value="{{ $ip['ip'] }}">
                                                         <input type="hidden" name="reason" value="{{ $ip['reason'] }}">
                                                         <button class="btn" type="submit">{{ __('Block permanently') }}</button>
                                                     </form>
-                                                    <a class="btn ghost" href="{{ route('porro.blocking', ['safelist' => $ip['ip']]) }}#safelist">{{ __('Safelist') }}</a>
+                                                    <form method="POST" action="{{ route('porro.safelist') }}" class="inline" onsubmit="return confirm({{ \Illuminate\Support\Js::from(\Porro\Laravel\Activity\Confirm::safelist($ip['ip'])) }})">
+                                                        @csrf
+                                                        <input type="hidden" name="ip" value="{{ $ip['ip'] }}">
+                                                        <input type="hidden" name="label" value="{{ __('From the activity table') }}">
+                                                        <button class="btn ghost" type="submit">{{ __('Safelist') }}</button>
+                                                    </form>
                                                 @endif
                                             </div>
                                         </td>
