@@ -428,7 +428,7 @@ class Presenter
      */
     public static function listQuery(array $query): array
     {
-        $string = fn (string $key, string $default) => is_string($query[$key] ?? null) ? $query[$key] : $default;
+        $string = fn (string $key, string $default) => is_string($query[$key] ?? null) || is_int($query[$key] ?? null) ? (string) $query[$key] : $default;
 
         return [
             'search' => $string('q', ''),
