@@ -147,8 +147,6 @@ it('refreshes a cached config so the scheduler sees the new key', function () {
 it('suggests the Statamic connector after connecting a Statamic site', function () {
     $this->app->instance(Companions::class, new Companions(fn ($package) => $package === 'statamic/cms'));
 
-    $this->artisan('porro:connect', ['key' => siteKey()['token'], '--no-cron' => true])
-        ->expectsOutputToContain('composer require porro/statamic-connector')
-        ->expectsOutputToContain('php please porro:connect')
-        ->assertSuccessful();
+    expect(Artisan::call('porro:connect', ['key' => siteKey()['token'], '--no-cron' => true]))->toBe(0)
+        ->and(Artisan::output())->toContain('composer require porro/statamic-connector')->toContain('php please porro:connect');
 });

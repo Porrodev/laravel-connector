@@ -12,10 +12,10 @@ use Composer\InstalledVersions;
  */
 final class Companions
 {
-    /** Platform package => the Porro connector for it, the platform's name, what it adds. */
+    /** Platform package => the Porro connector for it, the platform's name, what it adds, and any note after. */
     public const CONNECTORS = [
-        'filament/filament' => ['porro/filament-connector', 'Filament', 'Site health and Blocking pages in the panel.'],
-        'statamic/cms' => ['porro/statamic-connector', 'Statamic', 'a Porro section in the control panel. It also lets you run these commands as `php please porro:connect` and `php please porro:cron`.'],
+        'filament/filament' => ['porro/filament-connector', 'Filament', 'Site health and Blocking pages in the panel', null],
+        'statamic/cms' => ['porro/statamic-connector', 'Statamic', 'a Porro section in the control panel', 'With it, `php please porro:connect` and `php please porro:cron` work too.'],
     ];
 
     /** @var Closure(string): bool */
@@ -36,9 +36,13 @@ final class Companions
     {
         $hints = [];
 
-        foreach (self::CONNECTORS as $platform => [$connector, $name, $adds]) {
+        foreach (self::CONNECTORS as $platform => [$connector, $name, $adds, $note]) {
             if (($this->installed)($platform) && ! ($this->installed)($connector)) {
-                $hints[] = "This site uses {$name}. Run `composer require {$connector}` for {$adds}";
+                $hints[] = "This site uses {$name}. Run `composer require {$connector}` for {$adds}.";
+
+                if ($note) {
+                    $hints[] = $note;
+                }
             }
         }
 
