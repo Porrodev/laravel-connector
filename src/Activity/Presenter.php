@@ -112,8 +112,11 @@ class Presenter
         return [
             'failed' => $failed,
             'cloudflare' => $cloudflare,
-            'blocks' => array_map(fn (Entry $e) => $this->entry($e), $blocks),
-            'safe' => array_map(fn (Entry $e) => $this->entry($e), $safe),
+            // The newest few; the rest are on the list's own page.
+            'blocks' => array_map(fn (Entry $e) => $this->entry($e), array_slice(self::newestFirst($blocks), 0, self::PREVIEW)),
+            'safe' => array_map(fn (Entry $e) => $this->entry($e), array_slice(self::newestFirst($safe), 0, self::PREVIEW)),
+            'blockCount' => count($blocks),
+            'safeCount' => count($safe),
             'enforcement' => [
                 'app' => $this->activity->enforcing(),
                 'nginx' => (bool) config('porro.blocklist.nginx'),
@@ -400,6 +403,114 @@ class Presenter
     /**
      * @return array<string, mixed>
      */
+    /** Entries shown on the Blocking page; the full lists have their own pages. */
+    public const PREVIEW = 10;
+
+    public const PER_PAGE = 50;
+
+    /** Lists with their own page, and the filters each offers. */
+    public const LISTS = [
+        'blocklist' => ['all', Entry::MANUAL, Entry::SUGGESTED, Entry::CONFIG, 'expiring'],
+        'safelist' => ['all', Entry::MANUAL, Entry::CONFIG, 'expiring'],
+    ];
+
+    /**
+     * One page of the blocklist or safelist, newest first: matching $search
+     * (an IP finds the entries that cover it; anything else matches the
+     * address, reason or who added it) and $filter (a source, or entries
+     * expiring within 7 days).
+     *
+     * @return array<string, mixed>
+     */
+    public function entries(string $list, string $search = '', string $filter = 'all', int $page = 1): array
+    {
+        $now = time();
+        $filters = self::LISTS[$list] ?? self::LISTS['blocklist'];
+        $filter = in_array($filter, $filters, true) ? $filter : 'all';
+        $search = trim($search);
+
+        try {
+            $all = $list === 'safelist' ? $this->activity->blocklist()->safe($now) : $this->activity->blocklist()->blocks($now);
+            $failed = false;
+        } catch (Throwable $e) {
+            report($e);
+            [$all, $failed] = [[], true];
+        }
+
+        $matching = array_values(array_filter(self::newestFirst($all), fn (Entry $e) => self::matches($e, $search)));
+        $counts = [];
+
+        foreach ($filters as $key) {
+            $counts[$key] = count(array_filter($matching, fn (Entry $e) => self::inFilter($e, $key, $now)));
+        }
+
+        $shown = array_values(array_filter($matching, fn (Entry $e) => self::inFilter($e, $filter, $now)));
+        $pages = max(1, (int) ceil(count($shown) / self::PER_PAGE));
+        $page = min(max(1, $page), $pages);
+
+        return [
+            'list' => $list,
+            'failed' => $failed,
+            'entries' => array_map(fn (Entry $e) => $this->entry($e), array_slice($shown, ($page - 1) * self::PER_PAGE, self::PER_PAGE)),
+            'total' => count($all),
+            'shown' => count($shown),
+            'search' => $search,
+            'filter' => $filter,
+            'filters' => array_map(fn (string $key) => ['key' => $key, 'label' => __(self::FILTER_LABELS[$key]), 'count' => $counts[$key]], $filters),
+            'page' => $page,
+            'pages' => $pages,
+        ];
+    }
+
+    private const FILTER_LABELS = [
+        'all' => 'All',
+        Entry::MANUAL => 'Manual',
+        Entry::SUGGESTED => 'Suggested',
+        Entry::CONFIG => 'From config',
+        'expiring' => 'Expiring within 7 days',
+    ];
+
+    /**
+     * @param  list<Entry>  $entries
+     * @return list<Entry>
+     */
+    private static function newestFirst(array $entries): array
+    {
+        usort($entries, fn (Entry $a, Entry $b) => ($b->addedAt <=> $a->addedAt) ?: strnatcmp($a->cidr, $b->cidr));
+
+        return $entries;
+    }
+
+    private static function matches(Entry $entry, string $search): bool
+    {
+        if ($search === '') {
+            return true;
+        }
+
+        if (Cidr::isValid($search) && ! str_contains($search, '/')) {
+            return $entry->range()->contains($search);
+        }
+
+        $needle = mb_strtolower($search);
+
+        foreach ([$entry->cidr, $entry->note, (string) $entry->addedBy] as $haystack) {
+            if (str_contains(mb_strtolower($haystack), $needle)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static function inFilter(Entry $entry, string $filter, int $now): bool
+    {
+        return match ($filter) {
+            'all' => true,
+            'expiring' => $entry->expiresAt !== null && $entry->expiresAt <= $now + 7 * 86400,
+            default => $entry->source === $filter,
+        };
+    }
+
     private function entry(Entry $entry): array
     {
         return [

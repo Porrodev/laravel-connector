@@ -80,6 +80,19 @@ class PageController extends Controller
     }
 
     /**
+     * The whole blocklist or safelist: searchable, filterable, 50 a page.
+     */
+    public function list(Request $request, string $list): View
+    {
+        return $this->page($request, 'list', $this->presenter->entries(
+            $list,
+            (string) $request->query('q', ''),
+            (string) $request->query('filter', 'all'),
+            (int) $request->query('page', 1),
+        ));
+    }
+
+    /**
      * Setting up nginx: the two one-time steps for each server, and how far
      * each server has got.
      */

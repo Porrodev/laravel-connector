@@ -68,7 +68,7 @@ php artisan porro:cloudflare connect</pre>
     </section>
 
     <section class="panel">
-        <div class="panel-head"><span>{{ __('Blocklist') }}</span><span>{{ count($blocks) }}</span></div>
+        <div class="panel-head"><span>{{ __('Blocklist') }}</span><span>{{ number_format($blockCount) }}</span></div>
         @if ($canManage)
             <form method="POST" action="{{ route('porro.block') }}" class="form">
                 @csrf
@@ -84,6 +84,11 @@ php artisan porro:cloudflare connect</pre>
             </form>
         @endif
         @include('porro-laravel::page.entries', ['entries' => $blocks, 'remove' => route('porro.unblock'), 'empty' => __('Nothing is blocked.')])
+        @if ($blockCount > count($blocks))
+            <div class="row"><a href="{{ route('porro.list', 'blocklist') }}">{{ __('Show all :count, with search →', ['count' => number_format($blockCount)]) }}</a></div>
+        @elseif ($blockCount > 0)
+            <div class="row"><a class="small muted" href="{{ route('porro.list', 'blocklist') }}">{{ __('Search the blocklist →') }}</a></div>
+        @endif
     </section>
 
     <section class="panel" id="safelist">
@@ -99,6 +104,9 @@ php artisan porro:cloudflare connect</pre>
             </form>
         @endif
         @include('porro-laravel::page.entries', ['entries' => $safe, 'remove' => route('porro.unsafelist'), 'empty' => __('Nothing is safelisted.')])
+        @if ($safeCount > count($safe))
+            <div class="row"><a href="{{ route('porro.list', 'safelist') }}">{{ __('Show all :count, with search →', ['count' => number_format($safeCount)]) }}</a></div>
+        @endif
     </section>
 
     <section class="panel">
