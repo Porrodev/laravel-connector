@@ -103,7 +103,6 @@ class Presenter
             [$blocks, $safe, $failed] = [[], [], true];
         }
 
-        $ranges = $this->activity->ranges()->ranges();
         $nginxPath = (string) config('porro.blocklist.nginx_path');
 
         $cloudflare = app(CloudflareMode::class)->status();
@@ -124,10 +123,17 @@ class Presenter
                 'reload' => NginxStatus::reloadJob($nginxPath, (string) (config('porro.blocklist.nginx_stamp') ?: NginxStatus::STAMP)),
                 'servers' => app(NginxServers::class)->present(),
             ],
-            'protected' => array_values(array_filter(array_map(fn (string $source) => [
-                'label' => ProtectedRanges::label($source),
-                'count' => count($ranges[$source] ?? []),
-            ], array_keys($ranges)), fn ($row) => $row['count'] > 0)),
+            'protected' => array_map(fn (array $list) => [
+                'source' => $list['source'],
+                'label' => __($list['label']),
+                'why' => __($list['why']),
+                'from' => $list['from'],
+                'ranges' => $list['ranges'],
+                'count' => count($list['ranges']),
+                'on' => $list['on'],
+                // How to switch it off (or back on), for the lists that can be.
+                'env' => $list['optional'] ? self::PROTECT_ENV[$list['source']] ?? null : null,
+            ], array_values(array_filter($this->activity->ranges()->about(), fn ($list) => $list['ranges'] !== [] || ! $list['on']))),
         ];
     }
 
@@ -176,6 +182,13 @@ class Presenter
 
         return $out;
     }
+
+    /** The setting that switches each optional protected list off. */
+    public const PROTECT_ENV = [
+        ProtectedRanges::FORGE => 'PORRO_PROTECT_FORGE',
+        ProtectedRanges::FORGE_HEALTH => 'PORRO_PROTECT_FORGE',
+        ProtectedRanges::CRAWLERS => 'PORRO_PROTECT_CRAWLERS',
+    ];
 
     /** How each badge reads, and how worrying it is. */
     public const BADGES = [
@@ -239,6 +252,8 @@ class Presenter
             'activity' => $flagged ? $this->did($flagged) : null,
             'blocked' => $this->isBlocked($ip),
             'safelisted' => $this->activity->blocklist()->isSafelisted($ip),
+            // On an always-protected list: can't be blocked, so no buttons.
+            'protected' => ($source = $this->activity->ranges()->match($ip)) !== null ? __(ProtectedRanges::label($source)) : null,
             // A whole /24 only for hosting networks: on an ISP it would catch neighbours.
             'range' => $range && ($details['network_type'] ?? null) === 'hosting_provider' ? $range : null,
             'reason' => $flagged ? __('Flagged: :signals', ['signals' => implode(', ', array_map(fn ($s, $n) => (self::SIGNALS[$s] ?? $s)." ×{$n}", array_keys($flagged->signals()), $flagged->signals()))]) : __('Blocked from IP details'),

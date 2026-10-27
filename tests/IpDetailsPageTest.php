@@ -106,6 +106,9 @@ it('needs managePorroBlocklist to send an IP to AbuseIPDB', function () {
 });
 
 it('says plainly when a crawler is real, and what blocking it would mean', function () {
+    // With crawler protection off, so a real Googlebot can be recorded.
+    config(['porro.blocklist.protect.crawlers' => false]);
+    $this->app->forgetInstance(Activity::class);
     $this->app->instance('porro.reverse-dns', fn () => 'crawl-66-249-66-1.googlebot.com');
     // Googlebot following old links to scanner-looking paths, enough to be flagged.
     foreach (['/.env.example', '/backup.zip', '/wp-login.php'] as $path) {
@@ -117,6 +120,17 @@ it('says plainly when a crawler is real, and what blocking it would mean', funct
         ->assertSee('it resolves to crawl-66-249-66-1.googlebot.com')
         ->assertSee('Blocking it would stop the site being crawled')
         ->assertDontSee('Fake Googlebot');
+});
+
+it('never records a protected crawler, and offers no way to block it', function () {
+    foreach (['/.env.example', '/backup.zip', '/wp-login.php'] as $path) {
+        app(Activity::class)->recorder()->record('66.249.66.1', Recorder::PROBE, 'GET', $path, 404);
+    }
+
+    $this->get('/porro/activity/66.249.66.1')
+        ->assertSee('always protected: Search engine crawlers')
+        ->assertSee('Nothing flagged from this IP in the last 48 hours')
+        ->assertDontSee('Block permanently');
 });
 
 it('says when an IP did nothing here, and 404s on nonsense', function () {

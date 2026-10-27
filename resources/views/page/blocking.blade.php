@@ -103,9 +103,30 @@ php artisan porro:cloudflare connect</pre>
 
     <section class="panel">
         <div class="panel-head"><span>{{ __('Always protected') }}</span><span>{{ __('can’t be blocked') }}</span></div>
-        <p class="note small">{{ __('Infrastructure that has to reach this site. Blocks that overlap these are refused, and removed if a list changes.') }}</p>
+        <p class="note small">{{ __('Addresses that have to reach this site. Blocks that overlap these are refused, and removed if a list changes. Open one to see its addresses and why.') }}</p>
         @foreach ($protected as $row)
-            <div class="row"><span class="grow">{{ $row['label'] }}</span><span class="muted small">{{ trans_choice(':count range|:count ranges', $row['count'], ['count' => $row['count']]) }}</span></div>
+            <details class="protected">
+                <summary class="row">
+                    <span class="grow">{{ $row['label'] }}</span>
+                    @if ($row['on'])
+                        <span class="muted small">{{ trans_choice(':count range|:count ranges', $row['count'], ['count' => $row['count']]) }}</span>
+                    @else
+                        <span class="chip">{{ __('Switched off') }}</span>
+                    @endif
+                </summary>
+                <div class="note small">
+                    <p style="margin-top: 0">{{ $row['why'] }}</p>
+                    @if ($row['from'])
+                        <p class="muted">{{ __('From') }}: @foreach ($row['from'] as $url)<a href="{{ $url }}" target="_blank" rel="noopener">{{ parse_url($url, PHP_URL_HOST) }}{{ parse_url($url, PHP_URL_PATH) }}</a>@if (! $loop->last) · @endif @endforeach</p>
+                    @endif
+                    @if ($row['env'])
+                        <p class="muted">{{ $row['on'] ? __('Not needed here? Switch it off with :setting.', ['setting' => $row['env'].'=false']) : __('Switched off with :setting. Remove it to protect these again.', ['setting' => $row['env'].'=false']) }}</p>
+                    @endif
+                    @if ($row['ranges'])
+                        <div class="ranges">@foreach ($row['ranges'] as $range)<span>{{ $range }}</span>@endforeach</div>
+                    @endif
+                </div>
+            </details>
         @endforeach
     </section>
 @endsection
