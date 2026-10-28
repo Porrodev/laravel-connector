@@ -439,7 +439,7 @@ class Presenter
             'first' => Carbon::createFromTimestamp($ip->firstSeen)->diffForHumans(),
             'direct' => $ip->direct > 0 && ($ip->viaCloudflare > 0 || app(CloudflareMode::class)->configured()),
             'summary' => array_filter([
-                'Requests' => number_format($ip->requests)
+                'Requests' => ($ip->estimated ? __('about :n', ['n' => number_format($ip->requests)]) : number_format($ip->requests))
                     .($ip->turnedAway ? ' · '.trans_choice(':count turned away by the block|:count turned away by the block', $ip->turnedAway, ['count' => number_format($ip->turnedAway)]) : '')
                     .($ip->flagged ? '' : ' · '.__('not flagged')),
                 'Seen' => __(':first → :last', ['first' => Carbon::createFromTimestamp($ip->firstSeen)->format('j M H:i'), 'last' => Carbon::createFromTimestamp($ip->lastSeen)->format('j M H:i')]),

@@ -11,7 +11,9 @@
   - the responses it got, its hosts and methods;
   - its top paths with their last status, and its user agents.
 - The page also shows how many requests came through Cloudflare and how many came straight to the server. When some came straight to the server, it says that blocking at Cloudflare won't stop them.
-- Once an IP is flagged, all its requests are counted, within 5 minutes; ordinary visitors still cost nothing. Requires `porro/php-core` 0.3.4.
+- Once an IP is flagged, all its requests are counted, within 5 minutes; ordinary visitors still cost nothing. Requires `porro/php-core` 0.3.4, which also bounds what a flood can write: past 300 requests from one IP in an hour, counts are sampled and shown as "about".
+- A request with an invalid or untrusted Host header is still recorded. The method recorded is the one actually sent, so a `_method` override can't hide a POST flood.
+- Lighter on each request: the store check and the compiled blocklist are read once a request, counters take one write for a new key, and the IP page reads 48 hours in one query. Expired rows are now also cleared now and then without the scheduler.
 
 ## 0.3.3 - 2026-10-28
 

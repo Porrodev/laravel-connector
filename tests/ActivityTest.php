@@ -4,6 +4,7 @@ use Illuminate\Auth\Events\Failed;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -12,7 +13,9 @@ use Illuminate\Support\Facades\Schema;
 use Porro\Core\Activity\Entry;
 use Porro\Laravel\Activity\Activity;
 use Porro\Laravel\Activity\CloudflareMode;
+use Porro\Laravel\Activity\WatchRequests;
 use Porro\Laravel\SiteHealth;
+use Symfony\Component\HttpFoundation\Response;
 
 uses(RefreshDatabase::class);
 
@@ -168,11 +171,31 @@ describe('blocking', function () {
         $this->withServerVariables(from('185.220.101.4'))->get('/')->assertOk();
     });
 
+    it('still records a scanner that sends a bad or untrusted Host', function () {
+        $request = Request::create('/.env', 'GET', server: ['REMOTE_ADDR' => '185.220.101.4', 'HTTP_HOST' => 'a!b']);
+
+        // The old code read the host unguarded, and this threw.
+        expect(fn () => $request->getHost())->toThrow(Exception::class);
+
+        app(WatchRequests::class)->terminate($request, new Response('', 404));
+
+        expect(app(Activity::class)->summary()->totals['probe'])->toBe(1)
+            ->and(app(Activity::class)->recorder()->history('185.220.101.4')->hosts)->toBe([]);
+    });
+
+    it('counts a POST flood even when it claims to be a PUT', function () {
+        foreach (range(1, 3) as $i) {
+            $this->withServerVariables(from('185.220.101.4'))->post('/contact', ['_method' => 'PUT']);
+        }
+
+        expect(app(Activity::class)->summary()->totals['post_flood'])->toBe(3);
+    });
+
     it('counts every request from a flagged IP, and those a block turns away', function () {
         foreach (['/containers/json', '/images/json', '/.env'] as $path) {
             $this->withServerVariables(from('185.177.72.69'))->get($path);
         }
-        Cache::forget(Activity::COMPILED);
+        app(Activity::class)->changed();
 
         $this->withServerVariables(from('185.177.72.69'))->get('/')->assertOk();
         $this->withServerVariables(from('81.2.69.160'))->get('/')->assertOk();

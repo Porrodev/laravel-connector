@@ -43,11 +43,17 @@ class WatchRequests
 
             $ip = $this->activity->clientIp($request);
             $recorder = $this->activity->recorder();
-            $method = $request->getMethod();
+            // The method sent, not a _method override: a form can't hide a flood.
+            $method = $request->getRealMethod();
             $path = $request->getPathInfo();
-            $host = $request->getHost();
+            $host = self::host($request);
             $agent = $request->userAgent();
             $proxied = $this->activity->viaCloudflare($request);
+
+            // Expired rows are cleared now and then even without the scheduler.
+            if (random_int(1, 500) === 1) {
+                $this->activity->tidyStore();
+            }
 
             if ($response->headers->has('X-Porro-Blocked')) {
                 $recorder->turnedAway($ip, $method, $path, $host, $agent, $proxied);
@@ -76,6 +82,19 @@ class WatchRequests
             }
         } catch (Throwable) {
             //
+        }
+    }
+
+    /**
+     * The Host it asked for, or null: an invalid host, or one trustHosts()
+     * rejects, throws, and must never stop the request being recorded.
+     */
+    private static function host(Request $request): ?string
+    {
+        try {
+            return $request->getHost();
+        } catch (Throwable) {
+            return null;
         }
     }
 
