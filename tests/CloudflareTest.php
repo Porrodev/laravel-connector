@@ -192,7 +192,7 @@ describe('the setup page', function () {
             ->assertSee('1 · Create a Cloudflare API token')
             ->assertSee('https://dash.cloudflare.com/profile/api-tokens', false)
             ->assertSee('Account Rule Lists')->assertSee('Zone WAF Rules')
-        ->assertSee('One list for the whole Cloudflare account.')->assertSee('Entire Account')
+            ->assertSee('One list for the whole Cloudflare account.')->assertSee('Entire Account')
             ->assertSee('Zone WAF')
             ->assertSee('PORRO_CLOUDFLARE_TOKEN=', false)
             ->assertSee('Connect to Cloudflare')
