@@ -38,6 +38,12 @@ return [
         // store. Never the app's default store, which deploys clear.
         'store' => env('PORRO_ACTIVITY_STORE'),
 
+        // Each server appends suspicious requests to this file and records
+        // them in batches, so a request never writes to the database. Unset:
+        // storage/porro/activity.buf. false records every request straight
+        // away, as happens anyway when the folder can't be written (Vapor).
+        'buffer' => env('PORRO_ACTIVITY_BUFFER'),
+
         // When an IP is flagged: probes and failed logins per hour, 404s
         // and form posts per 10 minutes. Defaults in Porro\Core\Activity\Recorder.
         'thresholds' => [],

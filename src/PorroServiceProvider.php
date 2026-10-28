@@ -72,6 +72,17 @@ class PorroServiceProvider extends ServiceProvider
         // nginx mode only: every server writes its own deny file, so this runs
         // every minute on each (never onOneServer). Otherwise the blocklist is
         // kept tidy by the one task below, so scale-to-zero hosts can sleep.
+        // Each server records its own buffer, so on every server (never
+        // onOneServer), every minute: flags and alerts lag a minute at most.
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
+            $activity = $this->app->make(Activity::class);
+
+            // Not usable() here: that creates the folder, as whoever runs artisan.
+            if ($activity->recording() && $activity->buffer() !== null) {
+                $schedule->call(fn () => $activity->flush())->name('porro:activity-flush')->everyMinute();
+            }
+        });
+
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
             if (config('porro.blocklist.nginx')) {
                 $schedule->command('porro:blocklist-sync')->everyMinute()->withoutOverlapping()->runInBackground();

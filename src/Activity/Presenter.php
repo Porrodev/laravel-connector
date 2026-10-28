@@ -329,7 +329,7 @@ class Presenter
             }
         }
 
-        $history = $this->activity->recorder()->history($ip);
+        $history = $this->activity->history($ip);
         $agent = $history ? array_key_first($history->agents) : null;
         $details = $this->activity->details($ip, $flagged?->userAgent ?? $agent);
         $crawler = $this->crawler($details);

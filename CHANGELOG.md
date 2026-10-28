@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- A suspicious request no longer touches the database. It appends one short line to `storage/porro/activity.buf` on its server, and the lines are recorded in batches: one read and one write per IP and hour, however big the flood. Requires `porro/php-core` 0.3.5.
+- The buffer is flushed every minute by the scheduler on every server, now and then after a suspicious request's response (and whenever a server hasn't flushed for a minute), and before the Activity, IP and Site health pages read activity. Flags and the exposed-file alert can lag by up to a minute. Blocking is unchanged.
+- Counts are exact again during a flood: sampling only applies when requests are recorded straight away.
+- `PORRO_ACTIVITY_BUFFER` moves the file, or `false` turns batching off. Where storage can't be written (Vapor) requests are recorded straight away, as before.
+
 ## 0.3.4 - 2026-10-28
 
 - Suspicious activity, the Cloudflare connection and nginx check-ins now live in Porro's own `porro_cache` table, so a deploy that runs `cache:clear` (Statamic's install step does) no longer wipes the Activity page and its 48 hours of history. Run `php artisan migrate`. Until then, the app's cache is used as before. `PORRO_ACTIVITY_STORE` picks another cache store.

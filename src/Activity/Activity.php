@@ -2,6 +2,8 @@
 
 namespace Porro\Laravel\Activity;
 
+use Closure;
+use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\Request;
@@ -12,12 +14,14 @@ use Illuminate\Support\Facades\Schema;
 use Laravel\Telescope\Telescope;
 use Porro\Core\Activity\AbuseIpdb;
 use Porro\Core\Activity\Blocklist;
+use Porro\Core\Activity\Buffer;
 use Porro\Core\Activity\Cidr;
 use Porro\Core\Activity\ClientIp;
 use Porro\Core\Activity\CloudflareError;
 use Porro\Core\Activity\Countries;
 use Porro\Core\Activity\Entry;
 use Porro\Core\Activity\FlaggedIp;
+use Porro\Core\Activity\IpActivity;
 use Porro\Core\Activity\IpDetails;
 use Porro\Core\Activity\IpSet;
 use Porro\Core\Activity\Probes;
@@ -36,7 +40,9 @@ use Throwable;
  * On a visitor's request this only ever reads the cache: the blocklist is
  * compiled there, and protected ranges come from the last fetch (or the
  * bundled copy). The network and the database are touched by the
- * scheduled sync and the control panel, never by a page view.
+ * scheduled sync and the control panel, never by a page view. A
+ * suspicious request appends a line to this server's buffer file, and
+ * flush() records the lines in batches.
  *
  * A local or staging copy (anything but production) enforces blocks but
  * doesn't record activity unless asked to, and never writes the nginx
@@ -66,6 +72,12 @@ class Activity
     private ?Probes $probes = null;
 
     private bool $syncQueued = false;
+
+    /** One flush in this many suspicious requests, after the response. */
+    public const FLUSH_ODDS = 50;
+
+    /** Something was buffered this request, so it may flush once it's over. */
+    private bool $buffered = false;
 
     public function __construct(private Application $app) {}
 
@@ -203,7 +215,84 @@ class Activity
             fn (string $ip) => $this->compiled()['safe']->has($ip),
             (array) config('porro.activity.thresholds', []),
             fn (array $keys) => self::store()->many($keys),
+            buffer: $this->buffer(),
+            lock: function (Closure $work) {
+                $store = self::store()->getStore();
+
+                // Taken by another server's flush: false, so this one stays due.
+                return $store instanceof LockProvider ? $store->lock('porro:activity:flush', 120)->get($work) : $work();
+            },
         );
+    }
+
+    /**
+     * This server's buffer file: PORRO_ACTIVITY_BUFFER, or storage/porro.
+     * Set it to false to record every request straight away. Off on
+     * Lambda (Vapor), whose /tmp storage goes with each container.
+     */
+    public function buffer(): ?Buffer
+    {
+        $path = config('porro.activity.buffer');
+
+        if ($path === false || $path === 'false' || $path === '0' || getenv('AWS_LAMBDA_FUNCTION_NAME') !== false) {
+            return null;
+        }
+
+        return new Buffer(is_string($path) && $path !== '' ? $path : storage_path(self::BUFFER));
+    }
+
+    private const BUFFER = 'porro/activity.buf';
+
+    /**
+     * Records what this server's buffer holds. Pages that read activity
+     * call it first; with nothing waiting it's a lock and a stat.
+     */
+    public function flush(): void
+    {
+        $this->recorder()->flush();
+    }
+
+    /**
+     * Records what's waiting, or with batching off, deletes what an
+     * earlier setting left, so no raw IP stays on disk past 48 hours.
+     */
+    private function flushOrClear(): void
+    {
+        if ($this->buffer() === null) {
+            (new Buffer(storage_path(self::BUFFER)))->clear();
+
+            return;
+        }
+
+        $this->recorder()->flush();
+    }
+
+    /**
+     * Called once a request has buffered something: no cost to anyone else.
+     */
+    public function buffered(): void
+    {
+        $this->buffered = true;
+    }
+
+    /**
+     * After the response: flush now and then, or when this server hasn't
+     * for a minute, so flags and alerts lag a minute at most.
+     */
+    public function flushIfDue(): void
+    {
+        if (! $this->buffered) {
+            return;
+        }
+
+        $this->buffered = false;
+        // The lottery still waits 5 seconds between flushes, so a flood
+        // can't turn batching back into a write per request.
+        $lottery = random_int(1, max(1, (int) config('porro.activity.flush_odds', self::FLUSH_ODDS))) === 1;
+
+        if ($this->recorder()->flushDue($lottery ? 5 : 60)) {
+            $this->recorder()->flush();
+        }
     }
 
     public function probes(): Probes
@@ -334,6 +423,8 @@ class Activity
     public function maintain(): array
     {
         try {
+            $this->flushOrClear();
+
             if (! Schema::hasTable('porro_blocklist')) {
                 return [];
             }
@@ -410,7 +501,19 @@ class Activity
 
     public function summary(int $hours = 24): Summary
     {
+        $this->flush();
+
         return $this->recorder()->summary($hours);
+    }
+
+    /**
+     * Everything one IP did in the last 48 hours, buffered requests included.
+     */
+    public function history(string $ip): ?IpActivity
+    {
+        $this->flush();
+
+        return $this->recorder()->history($ip);
     }
 
     /**
