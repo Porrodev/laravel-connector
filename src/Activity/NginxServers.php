@@ -3,7 +3,6 @@
 namespace Porro\Laravel\Activity;
 
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Cache;
 use Porro\Core\Activity\NginxStatus;
 use Throwable;
 
@@ -50,7 +49,7 @@ class NginxServers
         try {
             $servers = $this->all();
             $servers[self::name()] = $status;
-            Cache::forever(self::KEY, array_filter($servers, fn ($s) => ($s['checked_at'] ?? 0) > time() - self::FORGET_AFTER));
+            Activity::store()->forever(self::KEY, array_filter($servers, fn ($s) => ($s['checked_at'] ?? 0) > time() - self::FORGET_AFTER));
         } catch (Throwable) {
             // A broken cache only means the page can't list this server.
         }
@@ -63,7 +62,7 @@ class NginxServers
      */
     public function all(): array
     {
-        $servers = Cache::get(self::KEY);
+        $servers = Activity::store()->get(self::KEY);
 
         return is_array($servers) ? $servers : [];
     }

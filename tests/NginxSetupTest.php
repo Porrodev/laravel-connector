@@ -2,7 +2,6 @@
 
 use Illuminate\Foundation\Auth\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Porro\Laravel\Activity\Activity;
 use Porro\Laravel\Activity\NginxServers;
@@ -46,7 +45,7 @@ it('walks through three steps with this site’s real paths, showing where the l
 });
 
 it('counts the steps done across servers', function () {
-    Cache::forever(NginxServers::KEY, [
+    Activity::store()->forever(NginxServers::KEY, [
         'web-1' => ['state' => 'loaded', 'checked_at' => time() - 30, 'reloaded' => time() - 60],
         'web-2' => ['state' => 'waiting_reload', 'checked_at' => time() - 40],
     ]);
@@ -104,7 +103,7 @@ it('puts the real IP lines in the file once the page is seen through Cloudflare'
 });
 
 it('lists every server that reported, worst first, and forgets quiet ones', function () {
-    Cache::forever(NginxServers::KEY, [
+    Activity::store()->forever(NginxServers::KEY, [
         'web-1' => ['state' => 'loaded', 'checked_at' => time() - 30, 'reloaded' => time() - 60],
         'web-2' => ['state' => 'waiting_reload', 'checked_at' => time() - 40],
         'old-box' => ['state' => 'loaded', 'checked_at' => time() - 2 * 86400],

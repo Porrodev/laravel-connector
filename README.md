@@ -57,9 +57,9 @@ Changing the lists also checks a `managePorroBlocklist` gate when you define one
 
 Works without a Porro account. IP addresses stay on the site.
 
-- **Run the migration first:** `php artisan migrate` adds the `porro_blocklist` and `porro_safelist` tables.
+- **Run the migration first:** `php artisan migrate` adds the `porro_blocklist`, `porro_safelist` and `porro_cache` tables.
 - **What's watched:** requests for scanner paths like `/.env`, `/.git` and `wp-login.php`, failed sign-ins on any guard, bursts of 404s and floods of form posts.
-  - Counts are kept in the cache for 48 hours.
+  - Counts are kept for 48 hours in Porro's own `porro_cache` table, so a deploy's `cache:clear` doesn't wipe them. Expired rows are cleared hourly; a database backup taken in those 48 hours will include them. Set `PORRO_ACTIVITY_STORE` to use another cache store instead, such as a dedicated Redis connection.
   - Only those requests are recorded, so normal page views cost nothing.
   - Usernames are kept only as hashes.
 - **Production only by default.** A local or staging copy records nothing unless `PORRO_ACTIVITY=true`.
@@ -132,6 +132,7 @@ Content, customer or user data, environment values or secrets. Run `php artisan 
 | `PORRO_ENABLED` | unset | `true` or `false` to force reporting on or off |
 | `PORRO_FAILED_JOB_MESSAGES` | `false` | Send the first line of failed jobs' exception messages, redacted |
 | `PORRO_ACTIVITY` | unset | Record suspicious activity; unset means production only |
+| `PORRO_ACTIVITY_STORE` | Porro's `porro_cache` table | The cache store for activity, the Cloudflare connection and nginx check-ins. Never the app's default store, which deploys clear |
 | `PORRO_BLOCK_APP` | `true` | Turn blocked IPs away with a 403 |
 | `PORRO_BLOCK_NGINX` | `false` | Write the nginx deny file every minute |
 | `PORRO_PROTECT_FORGE` | `true` | Never block Laravel Forge's servers and health checks. Set `false` if the site isn't on Forge |

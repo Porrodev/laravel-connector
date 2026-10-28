@@ -4,11 +4,14 @@ use Illuminate\Auth\Events\Failed;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 use Porro\Core\Activity\Entry;
 use Porro\Laravel\Activity\Activity;
+use Porro\Laravel\Activity\CloudflareMode;
 use Porro\Laravel\SiteHealth;
 
 uses(RefreshDatabase::class);
@@ -170,6 +173,52 @@ describe('blocking', function () {
         app(Activity::class)->changed();
 
         $this->withServerVariables(from('185.220.101.4'))->get('/')->assertOk();
+    });
+});
+
+describe('surviving deploys', function () {
+    it('keeps activity and the Cloudflare connection through cache:clear', function () {
+        foreach (['/.env', '/.git/config', '/wp-login.php'] as $path) {
+            $this->withServerVariables(from('185.220.101.4'))->get($path);
+        }
+        Activity::store()->forever(CloudflareMode::STATE, ['connection' => ['zone_name' => 'example.com']]);
+
+        $this->artisan('cache:clear')->assertSuccessful();
+
+        expect(flagged())->toHaveCount(1)
+            ->and(flagged()[0]->counts['probe'])->toBe(3)
+            ->and(Activity::store()->get(CloudflareMode::STATE)['connection']['zone_name'])->toBe('example.com')
+            ->and(DB::table(Activity::TABLE)->count())->toBeGreaterThan(0);
+    });
+
+    it('records in the app’s cache until its own table exists', function () {
+        Schema::drop(Activity::TABLE);
+        Cache::forget('porro:cache:ready');
+
+        $this->withServerVariables(from('185.220.101.4'))->get('/.env');
+
+        expect(flagged())->toHaveCount(0)
+            ->and(app(Activity::class)->summary()->totals['probe'])->toBe(1);
+    });
+
+    it('uses another store when PORRO_ACTIVITY_STORE names one', function () {
+        config(['porro.activity.store' => 'array']);
+
+        $this->withServerVariables(from('185.220.101.4'))->get('/.env');
+
+        expect(DB::table(Activity::TABLE)->count())->toBe(0)
+            ->and(app(Activity::class)->summary()->totals['probe'])->toBe(1);
+    });
+
+    it('clears expired rows and carries older state across', function () {
+        DB::table(Activity::TABLE)->insert(['key' => 'porro:activity:old', 'value' => serialize(1), 'expiration' => time() - 10]);
+        Cache::forever(CloudflareMode::STATE, ['connection' => ['zone_name' => 'example.com']]);
+
+        app(Activity::class)->maintain();
+
+        expect(DB::table(Activity::TABLE)->where('key', 'porro:activity:old')->exists())->toBeFalse()
+            ->and(Activity::store()->get(CloudflareMode::STATE)['connection']['zone_name'])->toBe('example.com')
+            ->and(Cache::get(CloudflareMode::STATE))->toBeNull();
     });
 });
 

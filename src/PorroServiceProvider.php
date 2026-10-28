@@ -34,6 +34,18 @@ class PorroServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__.'/../config/porro.php', 'porro');
 
+        // Porro's own store, in its own table, so cache:clear on deploy
+        // leaves activity alone. An app can define cache.stores.porro itself.
+        if (! config('cache.stores.'.Activity::STORE)) {
+            config(['cache.stores.'.Activity::STORE => [
+                'driver' => 'database',
+                'connection' => null,
+                'table' => Activity::TABLE,
+                'lock_connection' => null,
+                'lock_table' => Activity::TABLE.'_locks',
+            ]]);
+        }
+
         $this->app->singleton(Reporter::class);
         $this->app->singleton(Activity::class);
         $this->app->singleton(CloudflareMode::class);
