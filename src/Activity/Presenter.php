@@ -209,7 +209,7 @@ class Presenter
             ['server {', false],
             ['    listen 443 ssl;', false],
             ["    server_name {$host};", false],
-            ['    root '.public_path().';', false],
+            ['    root '.NginxBlocklist::stablePath(public_path()).';', false],
             ['', false],
             ["    {$include}", true],
             ['', false],

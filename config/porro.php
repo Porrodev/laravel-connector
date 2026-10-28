@@ -1,5 +1,7 @@
 <?php
 
+use Porro\Core\Activity\NginxBlocklist;
+
 return [
 
     // Your site key from the site page in Porro. Set by `php artisan porro:connect`.
@@ -52,7 +54,8 @@ return [
 
         // Write a deny file for nginx to include (production only).
         'nginx' => (bool) env('PORRO_BLOCK_NGINX', false),
-        'nginx_path' => env('PORRO_NGINX_PATH', storage_path('porro/nginx-blocklist.conf')),
+        // On zero-downtime deploys (releases/{id}), a path that outlives the release.
+        'nginx_path' => env('PORRO_NGINX_PATH') ?: NginxBlocklist::stablePath(storage_path('porro/nginx-blocklist.conf')),
 
         // Put Cloudflare's real IP lines in the same file, so nginx denies the
         // visitor rather than Cloudflare. Unset: on when the site is behind
