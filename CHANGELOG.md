@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Suspicious activity, the Cloudflare connection and nginx check-ins now live in Porro's own `porro_cache` table, so a deploy that runs `cache:clear` (Statamic's install step does) no longer wipes the Activity page and its 48 hours of history. Run `php artisan migrate`. Until then, the app's cache is used as before. `PORRO_ACTIVITY_STORE` picks another cache store.
+- Expired activity rows are cleared hourly by the scheduled task, and state saved in the app's cache by earlier versions is carried across once.
+
 ## 0.3.3 - 2026-10-28
 
 - **Blocking → Set up Cloudflare**: a setup page with three steps that tick themselves off. It lists the token's two permission policies as Cloudflare's dashboard names them (Zone WAF Rules: Edit and Zone: Read on the site's domain, Account Rule Lists: Edit on the account), the `.env` line with a copy button, and a **Connect to Cloudflare** button, so no terminal is needed. It says plainly that `porro_blocklist` is shared by every site on the Cloudflare account.

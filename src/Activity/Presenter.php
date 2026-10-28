@@ -3,7 +3,6 @@
 namespace Porro\Laravel\Activity;
 
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Cache;
 use Porro\Core\Activity\Cidr;
 use Porro\Core\Activity\Countries;
 use Porro\Core\Activity\Entry;
@@ -219,7 +218,7 @@ class Presenter
         // Seen through Cloudflare: remember it, so the deny file carries the
         // real IP lines without anyone having to set anything.
         if ($remoteAddr !== null && $this->activity->ranges()->isCloudflare($remoteAddr)) {
-            Cache::forever(Activity::BEHIND_CLOUDFLARE, true);
+            Activity::store()->forever(Activity::BEHIND_CLOUDFLARE, true);
         }
 
         $servers = $enforcement['servers'];

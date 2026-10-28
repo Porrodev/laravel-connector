@@ -55,7 +55,7 @@ it('shows who it is, what it did and what to do about it', function () {
 
 it('uses Cloudflare Intel when it can, and Radar once Intel is refused', function () {
     config(['porro.blocklist.cloudflare_token' => 'token']);
-    Cache::forever(CloudflareMode::STATE, ['connection' => ['account' => 'a1', 'zone_name' => 'example.com']]);
+    Activity::store()->forever(CloudflareMode::STATE, ['connection' => ['account' => 'a1', 'zone_name' => 'example.com']]);
     $intelAllowed = true;
     $this->app->instance(Cloudflare::class, new Cloudflare('token', function (string $method, string $url) use (&$intelAllowed) {
         if (str_contains($url, '/intel/ip')) {
@@ -75,7 +75,7 @@ it('uses Cloudflare Intel when it can, and Radar once Intel is refused', functio
         ->assertSee('Cloudflare IP Intelligence');
 
     Cache::flush();
-    Cache::forever(CloudflareMode::STATE, ['connection' => ['account' => 'a1', 'zone_name' => 'example.com']]);
+    Activity::store()->forever(CloudflareMode::STATE, ['connection' => ['account' => 'a1', 'zone_name' => 'example.com']]);
     $intelAllowed = false;
 
     $this->get('/porro/activity/45.148.10.92')->assertSee('Other Hosting Ltd · AS64501')->assertSee('Cloudflare Radar')->assertDontSee('Block 45.148.10.0/24');

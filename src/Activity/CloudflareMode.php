@@ -2,7 +2,6 @@
 
 namespace Porro\Laravel\Activity;
 
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Porro\Core\Activity\Cloudflare;
 use Porro\Core\Activity\CloudflareError;
@@ -52,7 +51,7 @@ class CloudflareMode
      */
     public function state(): ?array
     {
-        $state = Cache::get(self::STATE);
+        $state = Activity::store()->get(self::STATE);
 
         return is_array($state) ? $state : null;
     }
@@ -124,7 +123,7 @@ class CloudflareMode
             $this->client()->disconnect($connection, $this->siteId());
         }
 
-        Cache::forget(self::STATE);
+        Activity::store()->forget(self::STATE);
     }
 
     /**
@@ -159,7 +158,7 @@ class CloudflareMode
      */
     private function remember(array $changes): void
     {
-        Cache::forever(self::STATE, array_merge($this->state() ?? [], $changes));
+        Activity::store()->forever(self::STATE, array_merge($this->state() ?? [], $changes));
     }
 
     private function token(): string

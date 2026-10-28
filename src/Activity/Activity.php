@@ -2,9 +2,11 @@
 
 namespace Porro\Laravel\Activity;
 
+use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Telescope\Telescope;
@@ -46,6 +48,14 @@ class Activity
 
     public const COMPILED_TTL = 300;
 
+    /** Porro's own cache store and table, which a deploy's cache:clear leaves alone. */
+    public const STORE = 'porro';
+
+    public const TABLE = 'porro_cache';
+
+    /** Kept across deploys, so copied over from the app's cache once. */
+    private const CARRIED = [CloudflareMode::STATE, NginxServers::KEY, self::BEHIND_CLOUDFLARE];
+
     /** Accounts above this are too many to match hashes against. */
     private const USERS_LIMIT = 5000;
 
@@ -58,6 +68,22 @@ class Activity
     private bool $syncQueued = false;
 
     public function __construct(private Application $app) {}
+
+    /**
+     * Where activity, the Cloudflare connection and nginx check-ins live:
+     * PORRO_ACTIVITY_STORE, or Porro's own table. Until its migration has
+     * run, the app's cache, so recording never fails on a missing table.
+     */
+    public static function store(): Repository
+    {
+        $name = (string) (config('porro.activity.store') ?: self::STORE);
+
+        if ($name === self::STORE && ! Cache::remember('porro:cache:ready', 600, fn () => Schema::hasTable(self::TABLE))) {
+            return Cache::store();
+        }
+
+        return Cache::store($name);
+    }
 
     public function isProduction(): bool
     {
@@ -80,7 +106,7 @@ class Activity
             return filter_var($setting, FILTER_VALIDATE_BOOLEAN);
         }
 
-        return (bool) config('porro.blocklist.cloudflare_token') || (bool) Cache::get(self::BEHIND_CLOUDFLARE);
+        return (bool) config('porro.blocklist.cloudflare_token') || (bool) self::store()->get(self::BEHIND_CLOUDFLARE);
     }
 
     /**
@@ -140,11 +166,11 @@ class Activity
     public function recorder(): Recorder
     {
         return $this->recorder ??= new Recorder(
-            fn (string $key) => Cache::get($key),
-            fn (string $key, mixed $value, int $ttl) => Cache::put($key, $value, $ttl),
+            fn (string $key) => self::store()->get($key),
+            fn (string $key, mixed $value, int $ttl) => self::store()->put($key, $value, $ttl),
             function (string $key, int $ttl) {
-                Cache::add($key, 0, $ttl);
-                Cache::increment($key);
+                self::store()->add($key, 0, $ttl);
+                self::store()->increment($key);
             },
             $this->ranges(),
             (string) config('app.key'),
@@ -275,6 +301,7 @@ class Activity
             }
 
             Cache::forget(self::COMPILED);
+            $this->tidyStore();
             app(CloudflareMode::class)->sync();
 
             // A few checks a day at most, so a failed download isn't retried every run.
@@ -285,6 +312,31 @@ class Activity
             return $removed;
         } catch (Throwable) {
             return [];
+        }
+    }
+
+    /**
+     * Porro's table keeps expired rows until something reads them, so
+     * clear them hourly: activity is kept 48 hours, not until the next
+     * visit. Also carries state saved in the app's cache by older
+     * versions across, once.
+     */
+    private function tidyStore(): void
+    {
+        if ((config('porro.activity.store') ?: self::STORE) !== self::STORE || ! Schema::hasTable(self::TABLE)) {
+            return;
+        }
+
+        foreach (self::CARRIED as $key) {
+            if (($value = Cache::get($key)) !== null && self::store()->get($key) === null) {
+                self::store()->forever($key, $value);
+                Cache::forget($key);
+            }
+        }
+
+        if (Cache::add('porro:cache:pruned', true, 3600)) {
+            DB::table(self::TABLE)->where('expiration', '<=', time())->delete();
+            DB::table(self::TABLE.'_locks')->where('expiration', '<=', time())->delete();
         }
     }
 

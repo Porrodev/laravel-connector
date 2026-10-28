@@ -33,6 +33,11 @@ return [
         // production only, so a local copy's own traffic isn't counted.
         'enabled' => env('PORRO_ACTIVITY'),
 
+        // Where activity, the Cloudflare connection and nginx check-ins are
+        // kept: Porro's own porro_cache table unless this names another cache
+        // store. Never the app's default store, which deploys clear.
+        'store' => env('PORRO_ACTIVITY_STORE'),
+
         // When an IP is flagged: probes and failed logins per hour, 404s
         // and form posts per 10 minutes. Defaults in Porro\Core\Activity\Recorder.
         'thresholds' => [],
