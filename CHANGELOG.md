@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.3 - 2026-10-28
+
+- **Blocking → Set up Cloudflare**: a setup page with three steps that tick themselves off. It lists the token's two permission policies as Cloudflare's dashboard names them (Zone WAF Rules: Edit and Zone: Read on the site's domain, Account Rule Lists: Edit on the account), the `.env` line with a copy button, and a **Connect to Cloudflare** button, so no terminal is needed. It says plainly that `porro_blocklist` is shared by every site on the Cloudflare account.
+- The Blocking page's Cloudflare row is now one line linking to that page.
+- Requires `porro/php-core` 0.3.3: account-owned Cloudflare tokens work, and the probe list covers far more scanner targets with fewer false positives.
+
 ## 0.3.2 - 2026-10-28
 
 - On zero-downtime deploys (Forge, Envoyer, Deployer), the nginx deny file and the setup page's example config now use a path that outlives the release: shared storage's real path, or the `current` symlink. A path inside `releases/{id}` went stale after the next deploy, and `nginx -t` failed once that release was cleaned up. If your nginx config includes a `releases/…` path, change it to the one the setup page now shows.
