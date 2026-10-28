@@ -50,11 +50,6 @@ class WatchRequests
             $agent = $request->userAgent();
             $proxied = $this->activity->viaCloudflare($request);
 
-            // Expired rows are cleared now and then even without the scheduler.
-            if (random_int(1, 500) === 1) {
-                $this->activity->tidyStore();
-            }
-
             if ($response->headers->has('X-Porro-Blocked')) {
                 $recorder->turnedAway($ip, $method, $path, $host, $agent, $proxied);
 
@@ -79,6 +74,16 @@ class WatchRequests
             } elseif ($this->activity->watching($ip)) {
                 // Flagged already: count the rest, so its page shows them all.
                 $recorder->seen($ip, $method, $path, $status, $host, $agent, $proxied);
+            }
+        } catch (Throwable) {
+            //
+        }
+
+        // Expired rows are cleared now and then even without the scheduler,
+        // after recording, so a failed tidy never costs an event.
+        try {
+            if (random_int(1, 500) === 1 && $this->activity->recording()) {
+                $this->activity->tidyStore();
             }
         } catch (Throwable) {
             //
