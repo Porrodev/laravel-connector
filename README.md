@@ -53,6 +53,8 @@ Changing the lists also checks a `managePorroBlocklist` gate when you define one
 
 ## Suspicious activity and blocking
 
+![The Activity tab of the /porro page: the suspicious activity summary and the IPs worth a look, each with Block 7 days, Block permanently and Safelist buttons](docs/images/laravel-activity.png)
+
 Works without a Porro account. IP addresses stay on the site.
 
 - **Run the migration first:** `php artisan migrate` adds the `porro_blocklist` and `porro_safelist` tables.
@@ -74,12 +76,18 @@ Works without a Porro account. IP addresses stay on the site.
   - **What it did here:** activity over the last 48 hours and its last requests.
   - **Actions:** block it, block its /24 (offered only for hosting networks), or safelist it.
   - **Reputation:** with `PORRO_ABUSEIPDB_KEY`, a button checks AbuseIPDB. That's the one lookup that sends the IP anywhere, so it only runs when clicked, and only for people who can manage the blocklist.
+
+![IP details on the /porro page: an address pretending to be Googlebot, caught by its hostname, with buttons to block it or safelist it](docs/images/laravel-ip-details.png)
+
 - **Cloudflare WAF mode**, for sites behind Cloudflare. Blocked IPs are stopped at Cloudflare's edge, before they reach the server.
   - **Token:** create a Cloudflare API token with **Account Filter Lists Edit**, **Zone WAF Edit** and **Zone Read**, and set `PORRO_CLOUDFLARE_TOKEN`. The token stays in the environment, never the database.
   - **Connect:** run `php artisan porro:cloudflare connect`. It finds the zone serving `APP_URL` (or `PORRO_CLOUDFLARE_HOST`) and creates or reuses the account's `porro_blocklist` IP List. It then adds one custom rule blocking that list **next to your existing rules**, never replacing them.
   - **Syncing:** it syncs after every change and on the scheduled task. Only production syncs, and only to the zone it connected to, so a local or staging copy can't push its list.
   - **Shared list:** the list is shared by every site on the Cloudflare account. Each site only adds and removes items tagged with its own id, and an IP another site already blocked is left alone.
   - **Commands:** `porro:cloudflare` shows the status. `porro:cloudflare sync` syncs now, and `porro:cloudflare disconnect` removes this site's items and the rule.
+
+![The Blocking tab of the /porro page: blocking in the app, at Cloudflare and in nginx, above the blocklist](docs/images/laravel-blocking.png)
+
 - **nginx mode** (`PORRO_BLOCK_NGINX=true`). `/porro/blocking/nginx` walks through setup in three steps with this site's real paths, copy buttons, and an example config showing where the include line goes. Behind Cloudflare, the deny file also carries Cloudflare's real IP lines, so the site's config needs only that one line. It also lists every server and how far each has got: no file yet, include missing, waiting for reload, or loaded.
   - **How a server is checked:** each server checks itself every minute by looking, never by running anything. It confirms the file exists, that a readable nginx config includes it, and that the reload job has run since the last change.
   - **Seeing every server:** the list needs a cache the servers share, such as Redis or the database.

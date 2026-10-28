@@ -61,7 +61,7 @@ php artisan porro:cloudflare connect</pre>
                 @if ($enforcement['servers'])
                     <div class="small">{{ trans_choice(':loaded of :count server loaded|:loaded of :count servers loaded', count($enforcement['servers']), ['loaded' => $loaded, 'count' => count($enforcement['servers'])]) }} · <a href="{{ route('porro.nginx') }}">{{ __('Setup and servers') }} →</a></div>
                 @else
-                    <div class="small">{{ __('For sites not behind Cloudflare, or as well as it. Two one-time steps on each server.') }} <a href="{{ route('porro.nginx') }}">{{ __('Set up nginx') }} →</a></div>
+                    <div class="small">{{ __('For sites not behind Cloudflare, or as well as it. Three one-time steps: one for the site, two on each server.') }} <a href="{{ route('porro.nginx') }}">{{ __('Set up nginx') }} →</a></div>
                 @endif
             </div>
         </div>
