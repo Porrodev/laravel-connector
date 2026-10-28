@@ -52,6 +52,11 @@
     <section class="panel">
         <div class="panel-head"><span>{{ __('3 · Connect') }}</span>{!! $done($steps['connected']) !!}</div>
         <div class="note">
+            <div class="flash" style="margin-top: 0">
+                <strong>{{ __('One list for the whole Cloudflare account.') }}</strong>
+                {{ __('Cloudflare keeps IP lists per account, not per domain, so porro_blocklist is shared by every site you connect on this account. An IP blocked on one of them is blocked on all of them. Each site only adds and removes its own entries, and you’ll find the list under Manage account → Configurations → Lists.') }}
+                {{ __('Sites that mustn’t share blocks, such as different clients, need their own Cloudflare accounts.') }}
+            </div>
             @if ($cloudflare['connected'])
                 <p style="margin-top: 0">{{ __('Connected to :zone. Blocks go to the porro_blocklist list, with one rule blocking it next to your existing rules.', ['zone' => $cloudflare['zone']]) }}</p>
                 <p class="small {{ $cloudflare['error'] ? 'critical' : 'muted' }}" style="margin-bottom: 0">
@@ -61,7 +66,7 @@
                     @endif
                 </p>
             @else
-                <p style="margin-top: 0">{{ __('Finds the zone for :host, creates the porro_blocklist list (shared by your sites on the account) and adds one rule blocking it, next to your existing rules, never replacing them.', ['host' => $host ?: __('this site')]) }}</p>
+                <p style="margin-top: 0">{{ __('Finds the zone for :host, creates the porro_blocklist list if the account doesn’t have it yet, and adds one rule blocking it, next to your existing rules, never replacing them.', ['host' => $host ?: __('this site')]) }}</p>
                 @if ($canManage)
                     <form method="POST" action="{{ route('porro.cloudflare.connect') }}" class="inline">
                         @csrf
