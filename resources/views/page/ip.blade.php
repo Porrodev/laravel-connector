@@ -69,26 +69,67 @@
     </section>
 
     <section class="panel">
-        <div class="panel-head"><span>{{ __('What it did here') }}</span><span>{{ __('signals per hour · last 48 h') }}</span></div>
+        <div class="panel-head"><span>{{ __('What it did here') }}</span><span>{{ __('requests per hour · last 48 h') }}</span></div>
         @if ($details['activity'])
+            @php($did = $details['activity'])
             <div class="bars" aria-hidden="true">
-                @foreach ($details['activity']['hours'] as $n)
-                    <span class="{{ $n > 10 ? 'lots' : ($n > 0 ? 'some' : '') }}" style="height: {{ $n ? max(6, (int) round($n / $details['activity']['peak'] * 44)) : 2 }}px"></span>
+                @foreach ($did['hours'] as $n)
+                    <span class="{{ $n > 10 ? 'lots' : ($n > 0 ? 'some' : '') }}" style="height: {{ $n ? max(6, (int) round($n / $did['peak'] * 44)) : 2 }}px"></span>
                 @endforeach
             </div>
             <div class="row small muted" style="border: 0; padding-top: 4px"><span class="grow">{{ __('48 h ago') }}</span><span>{{ __('now') }}</span></div>
+            @foreach ($did['summary'] as $label => $value)
+                <dl class="kv"><dt>{{ __($label) }}</dt><dd>{{ $value }}</dd></dl>
+            @endforeach
+            @if ($did['direct'])
+                <p class="note small warning" style="margin: 0">{{ __('Some of its requests came straight to the server’s own address, not through Cloudflare. Blocking at Cloudflare won’t stop those: block in the app or in nginx, or let only Cloudflare reach the server at its firewall.') }}</p>
+            @endif
+            @unless ($did['flagged'])
+                <p class="note small muted" style="margin: 0">{{ __('Recorded, but under the thresholds that flag an IP. Only its suspicious requests are counted until it’s flagged.') }}</p>
+            @endunless
+        @else
+            <p class="note">{{ __('Nothing recorded from this IP in the last 48 hours.') }}</p>
+        @endif
+    </section>
+
+    @if ($details['activity'] && $details['activity']['paths'])
+        <section class="panel">
+            <div class="panel-head"><span>{{ __('Paths it asked for') }}</span><span>{{ __('requests · last answer') }}</span></div>
+            @foreach ($details['activity']['paths'] as $p)
+                <div class="row mono">
+                    <span class="grow" style="overflow-wrap: anywhere">{{ $p['path'] }}</span>
+                    <span class="muted">×{{ number_format($p['count']) }}</span>
+                    <span class="{{ $p['status'] >= 200 && $p['status'] < 300 ? 'critical' : 'muted' }}" style="width: 2.6rem; text-align: right">{{ $p['status'] ?: '—' }}</span>
+                </div>
+            @endforeach
+            @if ($details['activity']['otherPaths'])
+                <p class="note small muted" style="margin: 0">{{ trans_choice('…and :count more request to other paths.|…and :count more requests to other paths.', $details['activity']['otherPaths'], ['count' => number_format($details['activity']['otherPaths'])]) }}</p>
+            @endif
+        </section>
+    @endif
+
+    @if ($details['activity'] && $details['activity']['agents'])
+        <section class="panel">
+            <div class="panel-head"><span>{{ __('User agents') }}</span><span>{{ __('requests') }}</span></div>
+            @foreach ($details['activity']['agents'] as $a)
+                <div class="row mono"><span class="grow" style="overflow-wrap: anywhere">{{ $a['agent'] }}</span><span class="muted">×{{ number_format($a['count']) }}</span></div>
+            @endforeach
+        </section>
+    @endif
+
+    @if ($details['activity'] && $details['activity']['requests'])
+        <section class="panel">
+            <div class="panel-head"><span>{{ __('Latest requests') }}</span></div>
             @foreach ($details['activity']['requests'] as $r)
                 <div class="row mono">
                     <span class="muted" style="width: 3.2rem">{{ $r['method'] }}</span>
-                    <span class="grow">{{ $r['path'] }}</span>
+                    <span class="grow" style="overflow-wrap: anywhere">{{ $r['path'] }}</span>
                     <span class="{{ $r['status'] >= 200 && $r['status'] < 300 ? 'critical' : 'muted' }}">{{ $r['status'] ?: '—' }}</span>
                     <span class="muted">{{ $r['time'] }}</span>
                 </div>
             @endforeach
-        @else
-            <p class="note">{{ __('Nothing flagged from this IP in the last 48 hours.') }}</p>
-        @endif
-    </section>
+        </section>
+    @endif
 
     <section class="panel">
         <div class="panel-head"><span>{{ __('Reputation') }}</span><span>AbuseIPDB</span></div>

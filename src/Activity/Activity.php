@@ -78,12 +78,34 @@ class Activity
     {
         $name = (string) (config('porro.activity.store') ?: self::STORE);
 
-        if ($name === self::STORE && ! Cache::remember('porro:cache:ready', 600, fn () => Schema::hasTable(self::TABLE))) {
+        if ($name === self::STORE && ! self::ready()) {
             return Cache::store();
         }
 
         return Cache::store($name);
     }
+
+    /** Once the table is there, it stays: checked once a process after that. */
+    private static bool $ready = false;
+
+    private static function ready(): bool
+    {
+        return self::$ready = self::$ready || (bool) Cache::remember('porro:cache:ready', 600, fn () => Schema::hasTable(self::TABLE));
+    }
+
+    /**
+     * Called when the app boots, so a long-running worker or a test run
+     * checks the table again.
+     */
+    public static function forgetStore(): void
+    {
+        self::$ready = false;
+    }
+
+    /** @var array{blocks: IpSet, safe: IpSet, watch: IpSet}|null read once a request, or once a minute on a long-running worker */
+    private ?array $compiled = null;
+
+    private int $compiledAt = 0;
 
     public function isProduction(): bool
     {
@@ -168,14 +190,19 @@ class Activity
         return $this->recorder ??= new Recorder(
             fn (string $key) => self::store()->get($key),
             fn (string $key, mixed $value, int $ttl) => self::store()->put($key, $value, $ttl),
-            function (string $key, int $ttl) {
-                self::store()->add($key, 0, $ttl);
-                self::store()->increment($key);
+            function (string $key, int $ttl, int $by = 1) {
+                $store = self::store();
+
+                // A new key is one insert; only an existing one needs increment().
+                if (! $store->add($key, $by, $ttl)) {
+                    $store->increment($key, $by);
+                }
             },
             $this->ranges(),
             (string) config('app.key'),
             fn (string $ip) => $this->compiled()['safe']->has($ip),
             (array) config('porro.activity.thresholds', []),
+            fn (array $keys) => self::store()->many($keys),
         );
     }
 
@@ -193,6 +220,24 @@ class Activity
     public function clientIp(Request $request): string
     {
         return ClientIp::resolve((string) $request->ip(), $request->headers->all(), $this->ranges());
+    }
+
+    /**
+     * True when the request reached the server through Cloudflare, false
+     * when it came straight to the server's own address.
+     */
+    public function viaCloudflare(Request $request): bool
+    {
+        return $this->ranges()->isCloudflare((string) $request->server('REMOTE_ADDR'));
+    }
+
+    /**
+     * Whether $ip was flagged in the last 48 hours, so its every request
+     * is counted for its page. Read with the blocklist: no extra lookup.
+     */
+    public function watching(string $ip): bool
+    {
+        return $this->compiled()['watch']->has($ip);
     }
 
     /**
@@ -300,7 +345,7 @@ class Activity
                 Log::info("Porro: removed {$entry['cidr']} from the {$entry['list']}: {$entry['why']}");
             }
 
-            Cache::forget(self::COMPILED);
+            $this->forgetCompiled();
             $this->tidyStore();
             app(CloudflareMode::class)->sync();
 
@@ -321,7 +366,7 @@ class Activity
      * visit. Also carries state saved in the app's cache by older
      * versions across, once.
      */
-    private function tidyStore(): void
+    public function tidyStore(): void
     {
         if ((config('porro.activity.store') ?: self::STORE) !== self::STORE || ! Schema::hasTable(self::TABLE)) {
             return;
@@ -343,9 +388,15 @@ class Activity
     /**
      * Call after any change to either list.
      */
-    public function changed(): void
+    private function forgetCompiled(): void
     {
         Cache::forget(self::COMPILED);
+        $this->compiled = null;
+    }
+
+    public function changed(): void
+    {
+        $this->forgetCompiled();
 
         // Cloudflare after the response, so whoever blocked doesn't wait.
         if (! $this->syncQueued && app(CloudflareMode::class)->configured()) {
@@ -411,10 +462,14 @@ class Activity
     }
 
     /**
-     * @return array{blocks: IpSet, safe: IpSet}
+     * @return array{blocks: IpSet, safe: IpSet, watch: IpSet}
      */
     private function compiled(): array
     {
+        if ($this->compiled !== null && time() - $this->compiledAt < 60) {
+            return $this->compiled;
+        }
+
         try {
             $data = Cache::remember(self::COMPILED, self::COMPILED_TTL, function () {
                 $list = $this->blocklist();
@@ -422,11 +477,12 @@ class Activity
                 return [
                     'blocks' => array_map(fn (Entry $e) => [$e->cidr, $e->note], $list->blocks()),
                     'safe' => array_map(fn (Entry $e) => $e->cidr, $list->safe()),
+                    'watch' => $this->recorder()->watched(),
                 ];
             });
         } catch (Throwable) {
             // No table yet, or no database: nothing is blocked.
-            $data = ['blocks' => [], 'safe' => []];
+            $data = ['blocks' => [], 'safe' => [], 'watch' => []];
         }
 
         $blocks = new IpSet;
@@ -435,7 +491,9 @@ class Activity
             $blocks->add(Cidr::tryParse((string) $cidr), (string) $note);
         }
 
-        return ['blocks' => $blocks, 'safe' => IpSet::of($data['safe'] ?? [])];
+        $this->compiledAt = time();
+
+        return $this->compiled = ['blocks' => $blocks, 'safe' => IpSet::of($data['safe'] ?? []), 'watch' => IpSet::of($data['watch'] ?? [])];
     }
 
     /**

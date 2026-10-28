@@ -33,6 +33,7 @@ class PorroServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/porro.php', 'porro');
+        Activity::forgetStore();
 
         // Porro's own store, in its own table, so cache:clear on deploy
         // leaves activity alone. An app can define cache.stores.porro itself.

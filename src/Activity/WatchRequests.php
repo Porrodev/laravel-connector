@@ -36,40 +36,70 @@ class WatchRequests
 
     public function terminate(Request $request, Response $response): void
     {
-        if ($response->headers->has('X-Porro-Blocked')) {
-            return;
-        }
-
         try {
             if (! $this->activity->recording()) {
                 return;
             }
 
             $ip = $this->activity->clientIp($request);
-            $country = $this->activity->country($request);
-            $method = $request->getMethod();
-            $path = $request->getPathInfo();
-            $status = $response->getStatusCode();
             $recorder = $this->activity->recorder();
-            $category = $this->activity->probes()->match($path);
+            // The method sent, not a _method override: a form can't hide a flood.
+            $method = $request->getRealMethod();
+            $path = $request->getPathInfo();
+            $host = self::host($request);
+            $agent = $request->userAgent();
+            $proxied = $this->activity->viaCloudflare($request);
 
-            if ($category !== null) {
-                $recorder->record($ip, Recorder::PROBE, $method, $path, $status, country: $country, userAgent: $request->userAgent());
-
-                if (Probes::exposes($category) && $status >= 200 && $status < 300) {
-                    $recorder->exposed($ip, $path, $status);
-                }
+            if ($response->headers->has('X-Porro-Blocked')) {
+                $recorder->turnedAway($ip, $method, $path, $host, $agent, $proxied);
 
                 return;
             }
 
-            if ($status === 404) {
-                $recorder->record($ip, Recorder::NOT_FOUND, $method, $path, $status, country: $country, userAgent: $request->userAgent());
+            $country = $this->activity->country($request);
+            $status = $response->getStatusCode();
+            $category = $this->activity->probes()->match($path);
+            $more = ['country' => $country, 'userAgent' => $agent, 'host' => $host, 'proxied' => $proxied];
+
+            if ($category !== null) {
+                $recorder->record($ip, Recorder::PROBE, $method, $path, $status, ...[...$more, 'category' => $category]);
+
+                if (Probes::exposes($category) && $status >= 200 && $status < 300) {
+                    $recorder->exposed($ip, $path, $status);
+                }
+            } elseif ($status === 404) {
+                $recorder->record($ip, Recorder::NOT_FOUND, $method, $path, $status, ...$more);
             } elseif ($method === 'POST' && ! $request->is(...$this->ignoredPosts())) {
-                $recorder->record($ip, Recorder::POST_FLOOD, $method, $path, $status, country: $country, userAgent: $request->userAgent());
+                $recorder->record($ip, Recorder::POST_FLOOD, $method, $path, $status, ...$more);
+            } elseif ($this->activity->watching($ip)) {
+                // Flagged already: count the rest, so its page shows them all.
+                $recorder->seen($ip, $method, $path, $status, $host, $agent, $proxied);
             }
         } catch (Throwable) {
             //
+        }
+
+        // Expired rows are cleared now and then even without the scheduler,
+        // after recording, so a failed tidy never costs an event.
+        try {
+            if (random_int(1, 500) === 1 && $this->activity->recording()) {
+                $this->activity->tidyStore();
+            }
+        } catch (Throwable) {
+            //
+        }
+    }
+
+    /**
+     * The Host it asked for, or null: an invalid host, or one trustHosts()
+     * rejects, throws, and must never stop the request being recorded.
+     */
+    private static function host(Request $request): ?string
+    {
+        try {
+            return $request->getHost();
+        } catch (Throwable) {
+            return null;
         }
     }
 

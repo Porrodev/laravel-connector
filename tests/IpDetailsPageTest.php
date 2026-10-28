@@ -34,6 +34,36 @@ beforeEach(function () {
     }
 });
 
+it('sums up its requests: what it was after, how it reached the server, and which host', function () {
+    $recorder = app(Activity::class)->recorder();
+
+    foreach (range(1, 4) as $i) {
+        $recorder->record('45.148.10.92', Recorder::PROBE, 'GET', '/containers/json', 404, userAgent: 'zgrab/0.x', category: 'infrastructure', host: 'www.example.com', proxied: false);
+    }
+    $recorder->turnedAway('45.148.10.92', 'GET', '/images/json', 'example.com', 'zgrab/0.x', true);
+
+    $this->get('/porro/activity/45.148.10.92')
+        ->assertOk()
+        ->assertSee('Exposed services: Docker, MLflow, cloud metadata ×4')
+        ->assertSee('1 turned away by the block')
+        ->assertSee('straight to the server ×4')
+        ->assertSee('through Cloudflare ×1')
+        ->assertSee('www.example.com ×4')
+        ->assertSee('/containers/json')
+        ->assertSee('Blocking at Cloudflare won’t stop those')
+        ->assertSee('zgrab/0.x');
+});
+
+it('shows an IP that was recorded but never flagged', function () {
+    app(Activity::class)->recorder()->record('45.148.10.93', Recorder::NOT_FOUND, 'GET', '/missing', 404);
+
+    $this->get('/porro/activity/45.148.10.93')
+        ->assertOk()
+        ->assertSee('not flagged')
+        ->assertSee('Recorded, but under the thresholds')
+        ->assertSee('/missing');
+});
+
 it('opens from the Activity table', function () {
     $this->get('/porro/activity')->assertSee(route('porro.ip', '185.220.101.4'), false);
 });
@@ -49,6 +79,8 @@ it('shows who it is, what it did and what to do about it', function () {
         ->assertSee('real Googlebot addresses resolve to googlebot.com')
         ->assertSee('Blocking it won’t affect search')
         ->assertSee('/wp-login.php')
+        ->assertSee('Paths it asked for')
+        ->assertSee('Mozilla/5.0 (compatible; Googlebot/2.1)')
         ->assertSee('Block permanently')
         ->assertSee('Tor exit list · Spamhaus DROP');
 });
@@ -129,12 +161,12 @@ it('never records a protected crawler, and offers no way to block it', function 
 
     $this->get('/porro/activity/66.249.66.1')
         ->assertSee('always protected: Search engine crawlers')
-        ->assertSee('Nothing flagged from this IP in the last 48 hours')
+        ->assertSee('Nothing recorded from this IP in the last 48 hours')
         ->assertDontSee('Block permanently');
 });
 
 it('says when an IP did nothing here, and 404s on nonsense', function () {
-    $this->get('/porro/activity/45.148.10.92')->assertOk()->assertSee('Nothing flagged from this IP in the last 48 hours');
+    $this->get('/porro/activity/45.148.10.92')->assertOk()->assertSee('Nothing recorded from this IP in the last 48 hours');
     $this->get('/porro/activity/1.2.3')->assertNotFound();
 });
 
