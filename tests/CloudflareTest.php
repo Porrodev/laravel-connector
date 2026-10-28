@@ -160,7 +160,7 @@ it('shows Cloudflare on the Blocking page', function () {
     Gate::define('viewPorro', fn ($user) => true);
     $this->actingAs((new User)->forceFill(['id' => 1, 'name' => 'Ops']));
 
-    $this->get('/porro/blocking')->assertSee('Cloudflare WAF')->assertSee('token set, not connected')->assertSee('php artisan porro:cloudflare connect');
+    $this->get('/porro/blocking')->assertSee('Cloudflare WAF')->assertSee('token set, not connected')->assertSee('Finish setting up');
 
     $this->artisan('porro:cloudflare', ['action' => 'connect'])->assertSuccessful();
 
@@ -175,4 +175,67 @@ it('tags this site’s items with an id that stays put and differs between apps'
     config(['app.key' => 'base64:'.base64_encode(str_repeat('z', 32))]);
 
     expect(app(CloudflareMode::class)->siteId())->not->toBe($first)->toMatch('/^[0-9a-f]{12}$/');
+});
+
+describe('the setup page', function () {
+    beforeEach(function () {
+        Gate::define('viewPorro', fn ($user = null) => true);
+        $this->user = new User;
+        $this->user->id = 1;
+    });
+
+    it('walks through the token, the environment and connecting', function () {
+        config(['porro.blocklist.cloudflare_token' => null]);
+
+        $this->actingAs($this->user)->get('/porro/blocking/cloudflare')
+            ->assertOk()
+            ->assertSee('1 · Create a Cloudflare API token')
+            ->assertSee('https://dash.cloudflare.com/profile/api-tokens', false)
+            ->assertSee('Account Rule Lists')->assertSee('Zone WAF Rules')
+            ->assertSee('One list for the whole Cloudflare account.')->assertSee('Entire Account')
+            ->assertSee('Zone WAF')
+            ->assertSee('PORRO_CLOUDFLARE_TOKEN=', false)
+            ->assertSee('Connect to Cloudflare')
+            ->assertSee('www.dogearbooks.example');
+    });
+
+    it('connects and syncs from the page, no terminal needed', function () {
+        block('203.0.113.9');
+
+        $this->actingAs($this->user)->from('/porro/blocking/cloudflare')
+            ->withSession(['_token' => 't'])->post('/porro/blocking/cloudflare/connect', ['_token' => 't'])
+            ->assertRedirect('/porro/blocking/cloudflare')
+            ->assertSessionHas('success', 'Connected to dogearbooks.example and synced the blocklist.');
+
+        expect($this->cloudflare->ips())->toBe(['203.0.113.9'])
+            ->and($this->cloudflare->rules)->toHaveCount(1);
+
+        $this->actingAs($this->user)->get('/porro/blocking/cloudflare')->assertSee('Connected to dogearbooks.example');
+    });
+
+    it('says what Cloudflare said when connecting fails', function () {
+        config(['app.url' => 'https://not-on-this-account.example']);
+
+        $this->actingAs($this->user)->from('/porro/blocking/cloudflare')
+            ->withSession(['_token' => 't'])->post('/porro/blocking/cloudflare/connect', ['_token' => 't'])
+            ->assertSessionHas('error');
+
+        expect($this->cloudflare->rules)->toBe([]);
+    });
+
+    it('only lets people who can manage the blocklist connect', function () {
+        Gate::define('managePorroBlocklist', fn () => false);
+
+        $this->actingAs($this->user)->withSession(['_token' => 't'])->post('/porro/blocking/cloudflare/connect', ['_token' => 't'])->assertForbidden();
+
+        expect($this->cloudflare->rules)->toBe([]);
+    });
+
+    it('links the Blocking page to the setup', function () {
+        config(['porro.blocklist.cloudflare_token' => null]);
+
+        $this->actingAs($this->user)->get('/porro/blocking')
+            ->assertSee('Set up Cloudflare')
+            ->assertSee('/porro/blocking/cloudflare', false);
+    });
 });

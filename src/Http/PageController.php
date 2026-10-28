@@ -10,10 +10,12 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\View\View;
 use Porro\Core\Activity\Blocklist;
+use Porro\Core\Activity\CloudflareError;
 use Porro\Core\Activity\Entry;
 use Porro\Core\Activity\Refused;
 use Porro\Core\Health\Issue;
 use Porro\Laravel\Activity\Activity;
+use Porro\Laravel\Activity\CloudflareMode;
 use Porro\Laravel\Activity\Presenter;
 use Porro\Laravel\SiteHealth;
 use Throwable;
@@ -94,6 +96,39 @@ class PageController extends Controller
     public function nginx(Request $request): View
     {
         return $this->page($request, 'nginx', $this->presenter->nginx((string) $request->server('REMOTE_ADDR')));
+    }
+
+    /**
+     * Setting up Cloudflare: the token, where it goes, and connecting.
+     */
+    public function cloudflare(Request $request): View
+    {
+        return $this->page($request, 'cloudflare', $this->presenter->cloudflare());
+    }
+
+    /**
+     * Connect from the page, so nobody needs a terminal: finds the zone,
+     * creates or reuses the list and adds the rule, then syncs.
+     */
+    public function cloudflareConnect(Request $request, CloudflareMode $cloudflare): RedirectResponse
+    {
+        abort_unless(Authorize::canManage($request), 403);
+
+        if (! $cloudflare->configured()) {
+            return back()->with('error', __('Set PORRO_CLOUDFLARE_TOKEN first, then connect.'));
+        }
+
+        try {
+            $connection = $cloudflare->connect();
+        } catch (CloudflareError $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        $result = $cloudflare->sync();
+
+        return back()->with('success', $result !== null
+            ? __('Connected to :zone and synced the blocklist.', ['zone' => $connection['zone_name']])
+            : __('Connected to :zone. Only production syncs the blocklist.', ['zone' => $connection['zone_name']]));
     }
 
     public function refresh(): RedirectResponse
