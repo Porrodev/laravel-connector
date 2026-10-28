@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1 - 2026-10-28
+
+- The Blocking page's nginx row said setup takes "two one-time steps on each server". It takes three: one for the site and two on each server, as the setup page says.
+- The README shows Activity, IP details and Blocking, with screenshots.
+
 ## 0.3.0 - 2026-10-27
 
 - Requires `porro/php-core` ^0.3.0, from Packagist.
