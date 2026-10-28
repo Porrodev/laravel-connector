@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.5 - 2026-10-28
 
 - A suspicious request no longer touches the database. It appends one short line to `storage/porro/activity.buf` on its server, and the lines are recorded in batches: one read and one write per IP and hour, however big the flood. Requires `porro/php-core` 0.3.5.
 - The buffer is flushed every minute by the scheduler on every server, now and then after a suspicious request's response (and whenever a server hasn't flushed for a minute), and before the Activity, IP and Site health pages read activity. Flags and the exposed-file alert can lag by up to a minute. Blocking is unchanged.
