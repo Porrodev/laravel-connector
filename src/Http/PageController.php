@@ -88,7 +88,7 @@ class PageController extends Controller
     }
 
     /**
-     * Setting up nginx: the two one-time steps for each server, and how far
+     * Setting up nginx: the three one-time steps, one for the site and two for each server, and how far
      * each server has got.
      */
     public function nginx(Request $request): View
