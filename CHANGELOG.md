@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.4 - 2026-10-28
 
 - Suspicious activity, the Cloudflare connection and nginx check-ins now live in Porro's own `porro_cache` table, so a deploy that runs `cache:clear` (Statamic's install step does) no longer wipes the Activity page and its 48 hours of history. Run `php artisan migrate`. Until then, the app's cache is used as before. `PORRO_ACTIVITY_STORE` picks another cache store.
 - Expired activity rows are cleared hourly by the scheduled task, and state saved in the app's cache by earlier versions is carried across once.
