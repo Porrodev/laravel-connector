@@ -30,7 +30,7 @@ function bufferFile(): string
 /** This server flushed just now, so the next requests only buffer. */
 function justFlushed(): void
 {
-    @mkdir(dirname(bufferFile()), 0775, true);
+    is_dir(dirname(bufferFile())) || mkdir(dirname(bufferFile()), 0775, true);
     touch(bufferFile().'.lock');
 }
 
