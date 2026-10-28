@@ -80,8 +80,8 @@ Works without a Porro account. IP addresses stay on the site.
 ![IP details on the /porro page: an address pretending to be Googlebot, caught by its hostname, with buttons to block it or safelist it](docs/images/laravel-ip-details.png)
 
 - **Cloudflare WAF mode**, for sites behind Cloudflare. Blocked IPs are stopped at Cloudflare's edge, before they reach the server.
-  - **Token:** create a Cloudflare API token with **Account Filter Lists Edit**, **Zone WAF Edit** and **Zone Read**, and set `PORRO_CLOUDFLARE_TOKEN`. The token stays in the environment, never the database.
-  - **Connect:** run `php artisan porro:cloudflare connect`. It finds the zone serving `APP_URL` (or `PORRO_CLOUDFLARE_HOST`) and creates or reuses the account's `porro_blocklist` IP List. It then adds one custom rule blocking that list **next to your existing rules**, never replacing them.
+  - **Token:** create a Cloudflare API token (My Profile → API Tokens → Create Custom Token) with two policies: one scoped to the site's domain with **Zone WAF Rules: Edit** and **Zone: Read**, one scoped to the entire account with **Account Rule Lists: Edit**. Set it as `PORRO_CLOUDFLARE_TOKEN`; it stays in the environment, never the database. **Blocking → Set up Cloudflare** walks through it.
+  - **Connect:** click **Connect to Cloudflare** on the setup page, or run `php artisan porro:cloudflare connect`. It finds the zone serving `APP_URL` (or `PORRO_CLOUDFLARE_HOST`) and creates or reuses the account's `porro_blocklist` IP List. It then adds one custom rule blocking that list **next to your existing rules**, never replacing them.
   - **Syncing:** it syncs after every change and on the scheduled task. Only production syncs, and only to the zone it connected to, so a local or staging copy can't push its list.
   - **Shared list:** the list is shared by every site on the Cloudflare account. Each site only adds and removes items tagged with its own id, and an IP another site already blocked is left alone.
   - **Commands:** `porro:cloudflare` shows the status. `porro:cloudflare sync` syncs now, and `porro:cloudflare disconnect` removes this site's items and the rule.

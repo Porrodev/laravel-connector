@@ -17,7 +17,7 @@ class CloudflareCommand extends Command
     public function handle(CloudflareMode $cloudflare): int
     {
         if (! $cloudflare->configured()) {
-            $this->components->warn('Set PORRO_CLOUDFLARE_TOKEN first: a token with Account Filter Lists Edit, Zone WAF Edit and Zone Read.');
+            $this->components->warn('Set PORRO_CLOUDFLARE_TOKEN first: a token with Zone WAF Rules (Edit) and Zone (Read) for the site\'s domain, and Account Rule Lists (Edit) for the account. The Blocking page\'s Cloudflare setup walks through it.');
 
             return self::FAILURE;
         }

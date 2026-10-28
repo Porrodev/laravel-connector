@@ -34,16 +34,11 @@
                     @endif
                 </span>
                 @if ($cloudflare['connected'])
-                    <div class="small">{{ __('Blocked at the edge, before traffic reaches the server · zone :zone · list porro_blocklist', ['zone' => $cloudflare['zone']]) }}@if ($cloudflare['result'] && $cloudflare['result']['shared']) · {{ trans_choice(':count already blocked by another site|:count already blocked by other sites', $cloudflare['result']['shared'], ['count' => $cloudflare['result']['shared']]) }}@endif</div>
-                    @if ($cloudflare['error'])<div class="small critical">{{ $cloudflare['error'] }}</div>@endif
-                @elseif ($cloudflare['configured'])
-                    <div class="small">{{ __('Run this on the server to find the zone, create the porro_blocklist list and add the rule next to your existing ones:') }}</div>
-                    <pre>php artisan porro:cloudflare connect</pre>
+                    <div class="small">{{ __('Blocked at the edge, before traffic reaches the server · zone :zone · list porro_blocklist', ['zone' => $cloudflare['zone']]) }}@if ($cloudflare['result'] && $cloudflare['result']['shared']) · {{ trans_choice(':count already blocked by another site|:count already blocked by other sites', $cloudflare['result']['shared'], ['count' => $cloudflare['result']['shared']]) }}@endif · <a href="{{ route('porro.cloudflare') }}">{{ __('Setup') }} →</a></div>
                     @if ($cloudflare['error'])<div class="small critical">{{ $cloudflare['error'] }}</div>@endif
                 @else
-                    <div class="small">{{ __('Blocks at Cloudflare’s edge for sites behind it. Create a token with Account Filter Lists Edit, Zone WAF Edit and Zone Read, then:') }}</div>
-                    <pre>PORRO_CLOUDFLARE_TOKEN=your-token-here
-php artisan porro:cloudflare connect</pre>
+                    <div class="small">{{ __('For sites behind Cloudflare: blocks at Cloudflare’s edge, before traffic reaches the server. Three steps, and no terminal needed.') }} <a href="{{ route('porro.cloudflare') }}">{{ $cloudflare['configured'] ? __('Finish setting up') : __('Set up Cloudflare') }} →</a></div>
+                    @if ($cloudflare['error'])<div class="small critical">{{ $cloudflare['error'] }}</div>@endif
                 @endif
             </div>
         </div>

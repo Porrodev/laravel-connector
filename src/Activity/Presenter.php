@@ -160,6 +160,50 @@ class Presenter
         ];
     }
 
+    /** Cloudflare's token page. */
+    public const CLOUDFLARE_TOKENS_URL = 'https://dash.cloudflare.com/profile/api-tokens';
+
+    /**
+     * The token's two policies, as Cloudflare's token screen asks for them:
+     * what to scope each to, what to search for, and what to tick. The
+     * dashboard's names change more often than its search does.
+     */
+    public const CLOUDFLARE_POLICIES = [
+        ['scope' => 'Specified Domains → this site’s domain', 'permissions' => [
+            ['search' => 'zone waf', 'tick' => 'Zone WAF Rules', 'group' => 'App Security', 'access' => 'Edit'],
+            ['search' => 'zone', 'tick' => 'Zone', 'group' => 'DNS & Zones', 'access' => 'Read'],
+        ]],
+        ['scope' => 'Entire Account', 'permissions' => [
+            ['search' => 'lists', 'tick' => 'Account Rule Lists', 'group' => 'Rules & Configuration', 'access' => 'Edit'],
+        ]],
+    ];
+
+    /**
+     * The Cloudflare setup page: each step and whether it's done.
+     *
+     * @return array<string, mixed>
+     */
+    public function cloudflare(): array
+    {
+        $mode = app(CloudflareMode::class);
+        $status = $mode->status();
+        $status['synced'] = $status['synced_at'] ? Carbon::createFromTimestamp((int) $status['synced_at'])->diffForHumans() : null;
+
+        return [
+            'cloudflare' => $status,
+            'host' => $mode->host(),
+            'tokensUrl' => self::CLOUDFLARE_TOKENS_URL,
+            'policies' => self::CLOUDFLARE_POLICIES,
+            'envLine' => 'PORRO_CLOUDFLARE_TOKEN=',
+            'command' => 'php artisan porro:cloudflare connect',
+            'steps' => [
+                'token' => $status['configured'],
+                'connected' => $status['connected'],
+                'synced' => $status['connected'] && $status['synced_at'] && ! $status['error'],
+            ],
+        ];
+    }
+
     /**
      * The nginx setup page: enforcement and servers, whether the site is
      * behind Cloudflare (so the real IP lines come first), and whether the
