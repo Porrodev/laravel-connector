@@ -36,37 +36,43 @@ class WatchRequests
 
     public function terminate(Request $request, Response $response): void
     {
-        if ($response->headers->has('X-Porro-Blocked')) {
-            return;
-        }
-
         try {
             if (! $this->activity->recording()) {
                 return;
             }
 
             $ip = $this->activity->clientIp($request);
-            $country = $this->activity->country($request);
+            $recorder = $this->activity->recorder();
             $method = $request->getMethod();
             $path = $request->getPathInfo();
-            $status = $response->getStatusCode();
-            $recorder = $this->activity->recorder();
-            $category = $this->activity->probes()->match($path);
+            $host = $request->getHost();
+            $agent = $request->userAgent();
+            $proxied = $this->activity->viaCloudflare($request);
 
-            if ($category !== null) {
-                $recorder->record($ip, Recorder::PROBE, $method, $path, $status, country: $country, userAgent: $request->userAgent());
-
-                if (Probes::exposes($category) && $status >= 200 && $status < 300) {
-                    $recorder->exposed($ip, $path, $status);
-                }
+            if ($response->headers->has('X-Porro-Blocked')) {
+                $recorder->turnedAway($ip, $method, $path, $host, $agent, $proxied);
 
                 return;
             }
 
-            if ($status === 404) {
-                $recorder->record($ip, Recorder::NOT_FOUND, $method, $path, $status, country: $country, userAgent: $request->userAgent());
+            $country = $this->activity->country($request);
+            $status = $response->getStatusCode();
+            $category = $this->activity->probes()->match($path);
+            $more = ['country' => $country, 'userAgent' => $agent, 'host' => $host, 'proxied' => $proxied];
+
+            if ($category !== null) {
+                $recorder->record($ip, Recorder::PROBE, $method, $path, $status, ...[...$more, 'category' => $category]);
+
+                if (Probes::exposes($category) && $status >= 200 && $status < 300) {
+                    $recorder->exposed($ip, $path, $status);
+                }
+            } elseif ($status === 404) {
+                $recorder->record($ip, Recorder::NOT_FOUND, $method, $path, $status, ...$more);
             } elseif ($method === 'POST' && ! $request->is(...$this->ignoredPosts())) {
-                $recorder->record($ip, Recorder::POST_FLOOD, $method, $path, $status, country: $country, userAgent: $request->userAgent());
+                $recorder->record($ip, Recorder::POST_FLOOD, $method, $path, $status, ...$more);
+            } elseif ($this->activity->watching($ip)) {
+                // Flagged already: count the rest, so its page shows them all.
+                $recorder->seen($ip, $method, $path, $status, $host, $agent, $proxied);
             }
         } catch (Throwable) {
             //

@@ -6,10 +6,11 @@ use Carbon\Carbon;
 use Porro\Core\Activity\Cidr;
 use Porro\Core\Activity\Countries;
 use Porro\Core\Activity\Entry;
-use Porro\Core\Activity\FlaggedIp;
+use Porro\Core\Activity\IpActivity;
 use Porro\Core\Activity\IpDetails;
 use Porro\Core\Activity\NginxBlocklist;
 use Porro\Core\Activity\NginxStatus;
+use Porro\Core\Activity\Probes;
 use Porro\Core\Activity\ProtectedRanges;
 use Porro\Core\Activity\Recorder;
 use Throwable;
@@ -328,7 +329,9 @@ class Presenter
             }
         }
 
-        $details = $this->activity->details($ip, $flagged?->userAgent);
+        $history = $this->activity->recorder()->history($ip);
+        $agent = $history ? array_key_first($history->agents) : null;
+        $details = $this->activity->details($ip, $flagged?->userAgent ?? $agent);
         $crawler = $this->crawler($details);
         $badges = array_values(array_map(fn ($b) => (self::BADGES[$b] ?? ['label' => $b, 'tone' => 'neutral']) + ['key' => $b], $details['badges']));
 
@@ -346,7 +349,7 @@ class Presenter
 
         return [
             'ip' => $ip,
-            'country' => self::country($details['country'] ?? ($flagged?->country)),
+            'country' => self::country($details['country'] ?? ($flagged?->country ?? $history?->country)),
             'badges' => $badges,
             'network' => array_filter([
                 'Network' => trim(($details['network'] ?? '').($details['asn'] ? ' · AS'.$details['asn'] : '')) ?: null,
@@ -357,10 +360,9 @@ class Presenter
                     default => null,
                 },
                 'Hostname' => $details['hostname'] ? $details['hostname'].' · '.__('verified') : null,
-                'User agent' => $flagged?->userAgent,
             ]),
             'crawler' => $crawler,
-            'activity' => $flagged ? $this->did($flagged) : null,
+            'activity' => $history ? $this->did($history) : null,
             'blocked' => $this->isBlocked($ip),
             'safelisted' => $this->activity->blocklist()->isSafelisted($ip),
             // On an always-protected list: can't be blocked, so no buttons.
@@ -415,11 +417,12 @@ class Presenter
     }
 
     /**
-     * Signals per hour over 48 hours, and the last requests.
+     * What it did here over 48 hours: requests per hour, a summary, its
+     * top paths and user agents, and the last requests.
      *
      * @return array<string, mixed>
      */
-    private function did(FlaggedIp $ip): array
+    private function did(IpActivity $ip): array
     {
         $hours = [];
 
@@ -427,10 +430,29 @@ class Presenter
             $hours[] = (int) ($ip->hourly[gmdate('YmdH', time() - $i * 3600)] ?? 0);
         }
 
+        $times = fn (array $counts, array $labels = []) => implode(' · ', array_map(fn ($key, $n) => ($labels[$key] ?? $key).' ×'.number_format($n), array_keys($counts), $counts)) ?: null;
+
         return [
             'hours' => $hours,
             'peak' => max(1, ...$hours),
-            'first' => $ip->recent ? Carbon::createFromTimestamp((int) $ip->recent[array_key_last($ip->recent)][3])->diffForHumans() : null,
+            'flagged' => $ip->flagged,
+            'first' => Carbon::createFromTimestamp($ip->firstSeen)->diffForHumans(),
+            'direct' => $ip->direct > 0 && ($ip->viaCloudflare > 0 || app(CloudflareMode::class)->configured()),
+            'summary' => array_filter([
+                'Requests' => number_format($ip->requests)
+                    .($ip->turnedAway ? ' · '.trans_choice(':count turned away by the block|:count turned away by the block', $ip->turnedAway, ['count' => number_format($ip->turnedAway)]) : '')
+                    .($ip->flagged ? '' : ' · '.__('not flagged')),
+                'Seen' => __(':first → :last', ['first' => Carbon::createFromTimestamp($ip->firstSeen)->format('j M H:i'), 'last' => Carbon::createFromTimestamp($ip->lastSeen)->format('j M H:i')]),
+                'Signals' => $times($ip->signals(), self::SIGNALS),
+                'Looking for' => $times($ip->categories, array_map('__', Probes::LABELS)),
+                'Responses' => $times($ip->statuses),
+                'Route' => $times(array_filter([__('through Cloudflare') => $ip->viaCloudflare, __('straight to the server') => $ip->direct])),
+                'Hosts' => $times($ip->hosts),
+                'Methods' => $times($ip->methods),
+            ]),
+            'paths' => array_map(fn ($path, $row) => ['path' => (string) $path, 'count' => (int) $row[0], 'status' => (int) $row[1]], array_keys($ip->paths), $ip->paths),
+            'otherPaths' => $ip->otherPaths,
+            'agents' => array_map(fn ($agent, $n) => ['agent' => (string) $agent, 'count' => (int) $n], array_keys($ip->agents), $ip->agents),
             'requests' => array_map(fn ($r) => [
                 'method' => (string) $r[0],
                 'path' => (string) $r[1],

@@ -168,6 +168,29 @@ describe('blocking', function () {
         $this->withServerVariables(from('185.220.101.4'))->get('/')->assertOk();
     });
 
+    it('counts every request from a flagged IP, and those a block turns away', function () {
+        foreach (['/containers/json', '/images/json', '/.env'] as $path) {
+            $this->withServerVariables(from('185.177.72.69'))->get($path);
+        }
+        Cache::forget(Activity::COMPILED);
+
+        $this->withServerVariables(from('185.177.72.69'))->get('/')->assertOk();
+        $this->withServerVariables(from('81.2.69.160'))->get('/')->assertOk();
+
+        app(Activity::class)->blocklist()->block('185.177.72.69', 'Scanner', Entry::MANUAL, null, 'tests');
+        app(Activity::class)->changed();
+        $this->withServerVariables(from('185.177.72.69'))->get('/info')->assertForbidden();
+
+        $ip = app(Activity::class)->recorder()->history('185.177.72.69');
+
+        expect($ip->requests)->toBe(5)
+            ->and($ip->turnedAway)->toBe(1)
+            ->and($ip->categories)->toBe(['infrastructure' => 2, 'secrets' => 1])
+            ->and($ip->paths['/'])->toBe([1, 200])
+            ->and($ip->direct)->toBe(5)
+            ->and(app(Activity::class)->recorder()->history('81.2.69.160'))->toBeNull();
+    });
+
     it('fails open when the tables don’t exist yet', function () {
         DB::statement('DROP TABLE porro_blocklist');
         app(Activity::class)->changed();

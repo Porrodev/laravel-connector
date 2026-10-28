@@ -196,6 +196,24 @@ class Activity
     }
 
     /**
+     * True when the request reached the server through Cloudflare, false
+     * when it came straight to the server's own address.
+     */
+    public function viaCloudflare(Request $request): bool
+    {
+        return $this->ranges()->isCloudflare((string) $request->server('REMOTE_ADDR'));
+    }
+
+    /**
+     * Whether $ip was flagged in the last 48 hours, so its every request
+     * is counted for its page. Read with the blocklist: no extra lookup.
+     */
+    public function watching(string $ip): bool
+    {
+        return $this->compiled()['watch']->has($ip);
+    }
+
+    /**
      * The visitor's country when Cloudflare sent it: free, no lookup.
      */
     public function country(Request $request): ?string
@@ -411,7 +429,7 @@ class Activity
     }
 
     /**
-     * @return array{blocks: IpSet, safe: IpSet}
+     * @return array{blocks: IpSet, safe: IpSet, watch: IpSet}
      */
     private function compiled(): array
     {
@@ -422,11 +440,12 @@ class Activity
                 return [
                     'blocks' => array_map(fn (Entry $e) => [$e->cidr, $e->note], $list->blocks()),
                     'safe' => array_map(fn (Entry $e) => $e->cidr, $list->safe()),
+                    'watch' => $this->recorder()->watched(),
                 ];
             });
         } catch (Throwable) {
             // No table yet, or no database: nothing is blocked.
-            $data = ['blocks' => [], 'safe' => []];
+            $data = ['blocks' => [], 'safe' => [], 'watch' => []];
         }
 
         $blocks = new IpSet;
@@ -435,7 +454,7 @@ class Activity
             $blocks->add(Cidr::tryParse((string) $cidr), (string) $note);
         }
 
-        return ['blocks' => $blocks, 'safe' => IpSet::of($data['safe'] ?? [])];
+        return ['blocks' => $blocks, 'safe' => IpSet::of($data['safe'] ?? []), 'watch' => IpSet::of($data['watch'] ?? [])];
     }
 
     /**
