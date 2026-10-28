@@ -77,7 +77,8 @@ class PorroServiceProvider extends ServiceProvider
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
             $activity = $this->app->make(Activity::class);
 
-            if ($activity->recording() && $activity->buffer()?->usable()) {
+            // Not usable() here: that creates the folder, as whoever runs artisan.
+            if ($activity->recording() && $activity->buffer() !== null) {
                 $schedule->call(fn () => $activity->flush())->name('porro:activity-flush')->everyMinute();
             }
         });

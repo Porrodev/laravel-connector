@@ -219,7 +219,7 @@ class Activity
             lock: function (Closure $work) {
                 $store = self::store()->getStore();
 
-                // Flushes from other servers wait their turn, or skip this one.
+                // Taken by another server's flush: false, so this one stays due.
                 return $store instanceof LockProvider ? $store->lock('porro:activity:flush', 120)->get($work) : $work();
             },
         );
@@ -227,18 +227,21 @@ class Activity
 
     /**
      * This server's buffer file: PORRO_ACTIVITY_BUFFER, or storage/porro.
-     * Set it to false to record every request straight away.
+     * Set it to false to record every request straight away. Off on
+     * Lambda (Vapor), whose /tmp storage goes with each container.
      */
     public function buffer(): ?Buffer
     {
         $path = config('porro.activity.buffer');
 
-        if ($path === false || $path === 'false' || $path === '0') {
+        if ($path === false || $path === 'false' || $path === '0' || getenv('AWS_LAMBDA_FUNCTION_NAME') !== false) {
             return null;
         }
 
-        return new Buffer(is_string($path) && $path !== '' ? $path : storage_path('porro/activity.buf'));
+        return new Buffer(is_string($path) && $path !== '' ? $path : storage_path(self::BUFFER));
     }
+
+    private const BUFFER = 'porro/activity.buf';
 
     /**
      * Records what this server's buffer holds. Pages that read activity
@@ -246,6 +249,21 @@ class Activity
      */
     public function flush(): void
     {
+        $this->recorder()->flush();
+    }
+
+    /**
+     * Records what's waiting, or with batching off, deletes what an
+     * earlier setting left, so no raw IP stays on disk past 48 hours.
+     */
+    private function flushOrClear(): void
+    {
+        if ($this->buffer() === null) {
+            (new Buffer(storage_path(self::BUFFER)))->clear();
+
+            return;
+        }
+
         $this->recorder()->flush();
     }
 
@@ -268,8 +286,11 @@ class Activity
         }
 
         $this->buffered = false;
+        // The lottery still waits 5 seconds between flushes, so a flood
+        // can't turn batching back into a write per request.
+        $lottery = random_int(1, max(1, (int) config('porro.activity.flush_odds', self::FLUSH_ODDS))) === 1;
 
-        if (random_int(1, max(1, (int) config('porro.activity.flush_odds', self::FLUSH_ODDS))) === 1 || $this->recorder()->flushDue()) {
+        if ($this->recorder()->flushDue($lottery ? 5 : 60)) {
             $this->recorder()->flush();
         }
     }
@@ -402,7 +423,7 @@ class Activity
     public function maintain(): array
     {
         try {
-            $this->recorder()->flush();
+            $this->flushOrClear();
 
             if (! Schema::hasTable('porro_blocklist')) {
                 return [];

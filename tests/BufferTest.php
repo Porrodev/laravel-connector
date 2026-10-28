@@ -31,7 +31,7 @@ function bufferFile(): string
 function justFlushed(): void
 {
     is_dir(dirname(bufferFile())) || mkdir(dirname(bufferFile()), 0775, true);
-    touch(bufferFile().'.lock');
+    touch(bufferFile().'.flushed');
 }
 
 function stored(string $ip): mixed
@@ -56,13 +56,13 @@ describe('buffered activity', function () {
         $this->withServerVariables(scanFrom('81.2.69.160'))->get('/')->assertOk();
 
         expect(file_exists(bufferFile()))->toBeFalse()
-            ->and(file_exists(bufferFile().'.lock'))->toBeFalse();
+            ->and(file_exists(bufferFile().'.flushed'))->toBeFalse();
     });
 
     it('flushes after the response once this server hasn’t for a minute', function () {
         justFlushed();
         $this->withServerVariables(scanFrom('185.220.101.4'))->get('/.env');
-        touch(bufferFile().'.lock', time() - 61);
+        touch(bufferFile().'.flushed', time() - 61);
 
         $this->withServerVariables(scanFrom('185.220.101.4'))->get('/.env');
 
@@ -70,13 +70,17 @@ describe('buffered activity', function () {
             ->and(file_exists(bufferFile()))->toBeFalse();
     });
 
-    it('flushes now and then by lottery, after the response', function () {
+    it('flushes now and then by lottery, after the response, but not more than every 5 seconds', function () {
         justFlushed();
         config(['porro.activity.flush_odds' => 1]);
 
         $this->withServerVariables(scanFrom('185.220.101.4'))->get('/.env');
+        expect(stored('185.220.101.4'))->toBeNull();
 
-        expect(stored('185.220.101.4')['q'])->toBe(1);
+        touch(bufferFile().'.flushed', time() - 6);
+        $this->withServerVariables(scanFrom('185.220.101.4'))->get('/.env');
+
+        expect(stored('185.220.101.4')['q'])->toBe(2);
     });
 
     it('flushes every minute from the scheduler, on every server', function () {
@@ -121,8 +125,7 @@ describe('buffered activity', function () {
 
         $this->withServerVariables(scanFrom('185.220.101.4'))->get('/.env');
 
-        expect(stored('185.220.101.4')['q'])->toBe(1)
-            ->and(collect(app(Schedule::class)->events())->contains(fn ($e) => $e->description === 'porro:activity-flush'))->toBeFalse();
+        expect(stored('185.220.101.4')['q'])->toBe(1);
 
         chmod($dir, 0755);
     });
@@ -147,5 +150,30 @@ describe('buffered activity', function () {
 
         expect(file_get_contents(bufferFile()))->not->toContain('alice')
             ->and(app(Activity::class)->summary()->totals[Recorder::LOGIN_FAILED])->toBe(1);
+    });
+
+    it('deletes what an earlier setting left once batching is off', function () {
+        $storage = sys_get_temp_dir().'/porro-storage-'.bin2hex(random_bytes(4));
+        $this->app->useStoragePath($storage);
+        config(['porro.activity.buffer' => null]);
+        justFlushed();
+        $this->withServerVariables(scanFrom('185.220.101.4'))->get('/.env');
+        $file = bufferFile();
+        expect($file)->toBe("{$storage}/porro/activity.buf")->and(file_exists($file))->toBeTrue();
+        config(['porro.activity.buffer' => false]);
+
+        app(Activity::class)->maintain();
+
+        expect(file_exists($file))->toBeFalse();
+    });
+
+    it('records straight away on Lambda, where storage goes with the container', function () {
+        putenv('AWS_LAMBDA_FUNCTION_NAME=vapor-app');
+
+        try {
+            expect(app(Activity::class)->buffer())->toBeNull();
+        } finally {
+            putenv('AWS_LAMBDA_FUNCTION_NAME');
+        }
     });
 });
