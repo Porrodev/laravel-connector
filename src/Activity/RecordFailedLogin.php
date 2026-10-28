@@ -33,6 +33,8 @@ class RecordFailedLogin
                 country: $this->activity->country($request),
                 userAgent: $request->userAgent(),
             );
+
+            $this->activity->buffered();
         } catch (Throwable) {
             //
         }

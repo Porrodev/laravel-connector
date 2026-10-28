@@ -12,7 +12,8 @@ use Throwable;
 /**
  * Global middleware, first in line: turns blocked IPs away with a plain
  * 403 before the app does any work, and after the response has gone,
- * records requests that look like an attack.
+ * records requests that look like an attack (a line in this server's
+ * buffer, flushed now and then).
  *
  * Global, not in the web group, because a scanner's requests mostly hit
  * no route at all, and route middleware never sees a 404.
@@ -52,6 +53,7 @@ class WatchRequests
 
             if ($response->headers->has('X-Porro-Blocked')) {
                 $recorder->turnedAway($ip, $method, $path, $host, $agent, $proxied);
+                $this->activity->buffered();
 
                 return;
             }
@@ -60,6 +62,8 @@ class WatchRequests
             $status = $response->getStatusCode();
             $category = $this->activity->probes()->match($path);
             $more = ['country' => $country, 'userAgent' => $agent, 'host' => $host, 'proxied' => $proxied];
+
+            $suspicious = true;
 
             if ($category !== null) {
                 $recorder->record($ip, Recorder::PROBE, $method, $path, $status, ...[...$more, 'category' => $category]);
@@ -74,9 +78,17 @@ class WatchRequests
             } elseif ($this->activity->watching($ip)) {
                 // Flagged already: count the rest, so its page shows them all.
                 $recorder->seen($ip, $method, $path, $status, $host, $agent, $proxied);
+            } else {
+                $suspicious = false;
+            }
+
+            if ($suspicious) {
+                $this->activity->buffered();
             }
         } catch (Throwable) {
             //
+        } finally {
+            $this->flush();
         }
 
         // Expired rows are cleared now and then even without the scheduler,
@@ -85,6 +97,19 @@ class WatchRequests
             if (random_int(1, 500) === 1 && $this->activity->recording()) {
                 $this->activity->tidyStore();
             }
+        } catch (Throwable) {
+            //
+        }
+    }
+
+    /**
+     * Records the buffer now and then, once a request has added to it
+     * (here or a failed login): an ordinary page view never pays for it.
+     */
+    private function flush(): void
+    {
+        try {
+            $this->activity->flushIfDue();
         } catch (Throwable) {
             //
         }

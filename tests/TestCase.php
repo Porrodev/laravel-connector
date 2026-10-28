@@ -35,6 +35,9 @@ abstract class TestCase extends Orchestra
         $app['config']->set('cache.default', 'array');
         $app['config']->set('porro.url', 'https://porro.test');
 
+        // A buffer of its own per test, so no line leaks into the next.
+        $app['config']->set('porro.activity.buffer', sys_get_temp_dir().'/porro-test-'.bin2hex(random_bytes(6)).'/activity.buf');
+
         // Testbench runs as "testing", which would otherwise turn reporting off.
         $app['config']->set('porro.enabled', true);
 

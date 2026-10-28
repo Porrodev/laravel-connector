@@ -180,7 +180,7 @@ describe('blocking', function () {
         app(WatchRequests::class)->terminate($request, new Response('', 404));
 
         expect(app(Activity::class)->summary()->totals['probe'])->toBe(1)
-            ->and(app(Activity::class)->recorder()->history('185.220.101.4')->hosts)->toBe([]);
+            ->and(app(Activity::class)->history('185.220.101.4')->hosts)->toBe([]);
     });
 
     it('counts a POST flood even when it claims to be a PUT', function () {
@@ -195,6 +195,8 @@ describe('blocking', function () {
         foreach (['/containers/json', '/images/json', '/.env'] as $path) {
             $this->withServerVariables(from('185.177.72.69'))->get($path);
         }
+        // The flag lands with the next flush (every minute), then the watch list.
+        app(Activity::class)->flush();
         app(Activity::class)->changed();
 
         $this->withServerVariables(from('185.177.72.69'))->get('/')->assertOk();
@@ -204,14 +206,14 @@ describe('blocking', function () {
         app(Activity::class)->changed();
         $this->withServerVariables(from('185.177.72.69'))->get('/info')->assertForbidden();
 
-        $ip = app(Activity::class)->recorder()->history('185.177.72.69');
+        $ip = app(Activity::class)->history('185.177.72.69');
 
         expect($ip->requests)->toBe(5)
             ->and($ip->turnedAway)->toBe(1)
             ->and($ip->categories)->toBe(['infrastructure' => 2, 'secrets' => 1])
             ->and($ip->paths['/'])->toBe([1, 200])
             ->and($ip->direct)->toBe(5)
-            ->and(app(Activity::class)->recorder()->history('81.2.69.160'))->toBeNull();
+            ->and(app(Activity::class)->history('81.2.69.160'))->toBeNull();
     });
 
     it('fails open when the tables don’t exist yet', function () {
