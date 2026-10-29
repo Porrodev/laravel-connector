@@ -313,11 +313,13 @@ class Activity
 
     /**
      * True when the request reached the server through Cloudflare, false
-     * when it came straight to the server's own address.
+     * when it came straight to the server's own address. Behind a trusted
+     * load balancer, Cloudflare is the address the load balancer saw.
      */
     public function viaCloudflare(Request $request): bool
     {
-        return $this->ranges()->isCloudflare((string) $request->server('REMOTE_ADDR'));
+        return $this->ranges()->isCloudflare((string) $request->server('REMOTE_ADDR'))
+            || $this->ranges()->isCloudflare((string) $request->ip());
     }
 
     /**

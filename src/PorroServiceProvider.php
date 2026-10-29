@@ -6,6 +6,7 @@ use Filament\FilamentServiceProvider;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
+use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -114,20 +115,48 @@ class PorroServiceProvider extends ServiceProvider
     }
 
     /**
-     * First in the global stack, so blocked IPs cost nothing and scanner
-     * requests that match no route are still seen.
+     * Global, so scanner requests that match no route are still seen, and
+     * as early as it can be: straight after the app's TrustProxies, so the
+     * visitor behind a trusted load balancer is the one blocked and counted,
+     * not the load balancer. First of all when the app trusts no proxy.
      */
     private function watchRequests(): void
     {
         $this->app->booted(function () {
             $kernel = $this->app->make(HttpKernel::class);
 
-            if (method_exists($kernel, 'prependMiddleware')) {
-                $kernel->prependMiddleware(WatchRequests::class);
+            if (! method_exists($kernel, 'getGlobalMiddleware') || ! method_exists($kernel, 'setGlobalMiddleware')) {
+                if (method_exists($kernel, 'prependMiddleware')) {
+                    $kernel->prependMiddleware(WatchRequests::class);
+                }
+
+                return;
             }
+
+            $kernel->setGlobalMiddleware(self::afterTrustProxies($kernel->getGlobalMiddleware()));
         });
 
         Event::listen(Failed::class, RecordFailedLogin::class);
+    }
+
+    /**
+     * @param  array<int, mixed>  $middleware
+     * @return array<int, mixed>
+     */
+    public static function afterTrustProxies(array $middleware): array
+    {
+        $middleware = array_values(array_filter($middleware, fn ($m) => $m !== WatchRequests::class));
+        $at = 0;
+
+        foreach ($middleware as $i => $m) {
+            if (is_string($m) && is_a($m, TrustProxies::class, true)) {
+                $at = $i + 1;
+            }
+        }
+
+        array_splice($middleware, $at, 0, [WatchRequests::class]);
+
+        return $middleware;
     }
 
     public static function pageEnabled(): bool
