@@ -1,6 +1,6 @@
 # porro/laravel-connector
 
-![Porro for Laravel: know it's healthy, keep bad bots out. Site health, suspicious activity and blocking on a /porro page, free for Laravel 11, 12 and 13](https://raw.githubusercontent.com/Porrodev/laravel-connector/main/docs/images/hero.png)
+![Site health for Laravel, free on a /porro page: health, activity and blocking, beside the real Site health tab](https://raw.githubusercontent.com/Porrodev/laravel-connector/main/docs/images/header.png)
 
 Site health, suspicious activity and blocking for Laravel 11–13, on a `/porro` page like Horizon's dashboard. It checks the site for the things that quietly go wrong between deploys (security advisories in your Composer packages, PHP and Laravel versions running out of security support, a scheduler that isn't running, debug mode left on in production, migrations not run, failed jobs, stale backups) and tells you what to do about each. It also spots who's probing the site for secrets, trying passwords or flooding its forms, and lets you block them in a click.
 
