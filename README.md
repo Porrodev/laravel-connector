@@ -1,6 +1,6 @@
 # porro/laravel-connector
 
-[Porro](https://porro.dev) connector for Laravel 11–13. It sends one signed, read-only report about your site to Porro on the scheduler. It never accepts commands from Porro, and Porro never connects in.
+[Porro](https://porro.dev/?utm_source=laravel-connector&utm_medium=readme&utm_campaign=connectors) connector for Laravel 11–13. It sends one signed, read-only report about your site to Porro on the scheduler. It never accepts commands from Porro, and Porro never connects in.
 
 ## Install
 
