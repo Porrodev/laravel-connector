@@ -1,5 +1,7 @@
 # porro/laravel-connector
 
+![Porro for Laravel: know it's healthy, keep bad bots out. Site health, suspicious activity and blocking on a /porro page, free for Laravel 11, 12 and 13](https://raw.githubusercontent.com/Porrodev/laravel-connector/main/docs/images/hero.png)
+
 Site health, suspicious activity and blocking for Laravel 11–13, on a `/porro` page like Horizon's dashboard. It checks the site for the things that quietly go wrong between deploys (security advisories in your Composer packages, PHP and Laravel versions running out of security support, a scheduler that isn't running, debug mode left on in production, migrations not run, failed jobs, stale backups) and tells you what to do about each. It also spots who's probing the site for secrets, trying passwords or flooding its forms, and lets you block them in a click.
 
 It's free and works on its own, with no account. If you use [Porro](https://porro.dev/?utm_source=laravel-connector&utm_medium=readme&utm_campaign=connectors) to look after your sites, connecting it adds what can only be seen from outside: uptime, SSL certificates, domain expiry and the server's operating system, with alerts by email or Slack.
@@ -55,7 +57,7 @@ Changing the lists also checks a `managePorroBlocklist` gate when you define one
 
 ## Suspicious activity and blocking
 
-![The Activity tab of the /porro page: the suspicious activity summary and the IPs worth a look, each with Block 7 days, Block permanently and Safelist buttons](docs/images/laravel-activity.png)
+![The Activity tab of the /porro page: the suspicious activity summary and the IPs worth a look, each with Block 7 days, Block permanently and Safelist buttons](https://raw.githubusercontent.com/Porrodev/laravel-connector/main/docs/images/laravel-activity.png)
 
 Works without a Porro account. IP addresses aren't sent to Porro, and stay on the site apart from the lookups and Cloudflare blocking listed under [Where IP addresses go](#where-ip-addresses-go).
 
@@ -81,7 +83,7 @@ Works without a Porro account. IP addresses aren't sent to Porro, and stay on th
   - **Actions:** block it, block its /24 (offered only for hosting networks), or safelist it.
   - **Reputation:** with `PORRO_ABUSEIPDB_KEY`, a button checks AbuseIPDB. It sends the IP to AbuseIPDB, so it only runs when clicked, and only for people who can manage the blocklist.
 
-![IP details on the /porro page: an address pretending to be Googlebot, caught by its hostname, with buttons to block it or safelist it](docs/images/laravel-ip-details.png)
+![IP details on the /porro page: an address pretending to be Googlebot, caught by its hostname, with buttons to block it or safelist it](https://raw.githubusercontent.com/Porrodev/laravel-connector/main/docs/images/laravel-ip-details.png)
 
 - **Cloudflare WAF mode**, for sites behind Cloudflare. Blocked IPs are stopped at Cloudflare's edge, before they reach the server.
   - **Token:** create a Cloudflare API token (My Profile → API Tokens → Create Custom Token) with two policies: one scoped to the site's domain with **Zone WAF Rules: Edit** and **Zone: Read**, one scoped to the entire account with **Account Rule Lists: Edit**. Set it as `PORRO_CLOUDFLARE_TOKEN`; it stays in the environment, never the database. **Blocking → Set up Cloudflare** walks through it.
@@ -90,7 +92,7 @@ Works without a Porro account. IP addresses aren't sent to Porro, and stay on th
   - **Shared list:** the list is shared by every site on the Cloudflare account. Each site only adds and removes items tagged with its own id, and an IP another site already blocked is left alone.
   - **Commands:** `porro:cloudflare` shows the status. `porro:cloudflare sync` syncs now, and `porro:cloudflare disconnect` removes this site's items and the rule.
 
-![The Blocking tab of the /porro page: blocking in the app, at Cloudflare and in nginx, above the blocklist](docs/images/laravel-blocking.png)
+![The Blocking tab of the /porro page: blocking in the app, at Cloudflare and in nginx, above the blocklist](https://raw.githubusercontent.com/Porrodev/laravel-connector/main/docs/images/laravel-blocking.png)
 
 - **nginx mode** (`PORRO_BLOCK_NGINX=true`). `/porro/blocking/nginx` walks through setup in three steps with this site's real paths, copy buttons, and an example config showing where the include line goes. Behind Cloudflare, the deny file also carries Cloudflare's real IP lines, so the site's config needs only that one line. It also lists every server and how far each has got: no file yet, include missing, waiting for reload, or loaded.
   - **How a server is checked:** each server checks itself every minute by looking, never by running anything. It confirms the file exists, that a readable nginx config includes it, and that the reload job has run since the last change.
