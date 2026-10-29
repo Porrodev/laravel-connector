@@ -1,31 +1,33 @@
 # porro/laravel-connector
 
-[Porro](https://porro.dev/?utm_source=laravel-connector&utm_medium=readme&utm_campaign=connectors) connector for Laravel 11–13. It sends one signed, read-only report about your site to Porro on the scheduler. It never accepts commands from Porro, and Porro never connects in.
+Site health, suspicious activity and blocking for Laravel 11–13, on a `/porro` page like Horizon's dashboard. It checks the site for the things that quietly go wrong between deploys (security advisories in your Composer packages, PHP and Laravel versions running out of security support, a scheduler that isn't running, debug mode left on in production, migrations not run, failed jobs, stale backups) and tells you what to do about each. It also spots who's probing the site for secrets, trying passwords or flooding its forms, and lets you block them in a click.
+
+It's free and works on its own, with no account. If you use [Porro](https://porro.dev/?utm_source=laravel-connector&utm_medium=readme&utm_campaign=connectors) to look after your sites, connecting it adds what can only be seen from outside: uptime, SSL certificates, domain expiry and the server's operating system, with alerts by email or Slack.
 
 ## Install
 
 ```bash
 composer require porro/laravel-connector
-php artisan porro:connect <site key>
+php artisan migrate
 ```
 
-Copy the site key from the site's page in Porro. `porro:connect` writes `PORRO_KEY` to `.env` and sends the first report.
+The migration adds the `porro_blocklist`, `porro_safelist` and `porro_cache` tables. Then visit `/porro`. It's open in the `local` environment; anywhere else it needs a gate first (see [The /porro page](#the-porro-page)).
 
-Reports then go every 15 minutes on Laravel's scheduler, which needs one cron line. If the scheduler isn't already running, `porro:connect` offers to add it to the server's crontab for you, with the right PHP binary and project folder. If it can't, it prints the line to paste into Forge, Ploi or `crontab -e`. Use `--cron` to add it without asking (handy in provisioning scripts) or `--no-cron` to leave the crontab alone. Skipped it, or connected from another machine? Run `php artisan porro:cron` on the server; it needs no key.
+The scheduler check, activity batching and nginx mode run on Laravel's scheduler, which needs one cron line. If it isn't running yet, `php artisan porro:cron` adds it to the server's crontab for you, with the right PHP binary and project folder. If it can't, it prints the line to paste into Forge, Ploi or `crontab -e`. On Laravel Cloud and Vapor the platform runs the scheduler: turn it on (Cloud) or leave it on (Vapor).
 
-On Laravel Cloud and Vapor the platform runs the scheduler for you, so there's no cron line: turn the scheduler on (Cloud) or leave it on (Vapor), and set `PORRO_KEY` as an environment variable.
+Using Filament or Statamic? Install [`porro/filament-connector`](https://github.com/Porrodev/filament-connector) or [`porro/statamic-connector`](https://github.com/Porrodev/statamic-connector) instead. They include this package and show everything here in the control panel. If you install this one on its own, `porro:status` points you to the right connector.
 
-Add `php artisan porro:report` to your deploy script so Porro hears about deploys straight away.
+## What it checks
 
-Using Filament or Statamic? Install [`porro/filament-connector`](https://github.com/Porrodev/filament-connector) or [`porro/statamic-connector`](https://github.com/Porrodev/statamic-connector) instead. They include this package and add Porro to the control panel. If you install this one on its own, `porro:connect` and `porro:status` point you to the right connector.
+On the site itself, with no account, through `Porro\Laravel\SiteHealth`:
 
-## Site health, with or without Porro
+- **PHP and Laravel versions** past or close to the end of security support ([endoflife.date](https://endoflife.date), with a bundled copy for when it can't be reached), and newer Laravel releases
+- **Security advisories** in `composer.lock` ([Packagist's advisories API](https://packagist.org/apidoc#list-security-advisories), the one `composer audit` uses; only package names are sent)
+- **The scheduler:** whether it runs. The scheduler writes a heartbeat every `PORRO_INTERVAL` minutes so the page can tell
+- **Debug mode** in production, **pending migrations** and **failed jobs**
+- **Backups** from `spatie/laravel-backup`, and `spatie/laravel-health` checks, if installed
 
-`Porro\Laravel\SiteHealth` checks the site from the inside, without a Porro account: PHP and Laravel versions past or close to the end of security support ([endoflife.date](https://endoflife.date), with a bundled copy for when it can't be reached), known security advisories in `composer.lock` ([Packagist's advisories API](https://packagist.org/apidoc#list-security-advisories), the one `composer audit` uses; only package names are sent), newer Laravel releases, whether the scheduler runs, debug mode in production, pending migrations, failed jobs, backups and `spatie/laravel-health` checks. Once the site is connected, it adds the site's open findings in Porro (uptime, SSL, the domain, the server's OS and packages) with links into Porro.
-
-The Statamic and Filament connectors show this as a panel in the control panel. Results are cached for five minutes; the public data behind them for between six hours and a day.
-
-When the site isn't connected, the scheduler still writes a heartbeat every `PORRO_INTERVAL` minutes so the panel can tell whether cron runs.
+Results are cached for five minutes; the public data behind them for between six hours and a day. The Statamic and Filament connectors show the same checks as a panel in the control panel.
 
 ## The /porro page
 
@@ -109,7 +111,25 @@ IP addresses are never in the report to Porro. They leave the server only in the
 
 Countries, the Tor and Spamhaus badges and the protected ranges are matched on the server, against files and lists it downloads.
 
+## Connect Porro (optional)
+
+Porro watches every site you look after from outside: uptime from several regions, SSL and domain expiry, the server's OS and security updates, with alerts by email or Slack. It's a separate service with its own account; see [porro.dev](https://porro.dev/?utm_source=laravel-connector&utm_medium=readme&utm_campaign=connectors) for plans. Nothing in this package needs it, and nothing is sent to Porro until you connect. Add the site in Porro and copy its site key, then:
+
+```bash
+php artisan porro:connect <site key>
+```
+
+`porro:connect` writes `PORRO_KEY` to `.env` and sends the first report. The Site health tab then shows the site's open findings in Porro (uptime, SSL, the domain, the server's OS and packages) alongside the checks above, each linking into Porro.
+
+Reports then go every 15 minutes on the scheduler. If it isn't running, `porro:connect` offers to add the cron line, as `porro:cron` does. Use `--cron` to add it without asking (handy in provisioning scripts) or `--no-cron` to leave the crontab alone. Connected from another machine? Run `php artisan porro:cron` on the server; it needs no key. On Laravel Cloud and Vapor, set `PORRO_KEY` as an environment variable instead.
+
+Add `php artisan porro:report` to your deploy script so Porro hears about deploys straight away.
+
+Each report is signed and read-only: it never changes the site and never accepts commands, and Porro never connects in.
+
 ## What leaves a site
+
+Only once connected, in the report every 15 minutes:
 
 - Laravel, PHP and package versions (names and versions from `composer.lock`; the list is only sent when the lock file changes)
 - The environment name, and whether debug mode is on (true or false, never the value of any setting)
