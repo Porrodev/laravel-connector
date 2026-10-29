@@ -8,8 +8,8 @@ use Illuminate\Support\Facades\Gate;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Who may open /porro, the way Horizon does it: anyone in the local
- * environment; anywhere else, only users your "viewPorro" gate allows.
+ * Who may open /porro: anyone in the local environment; anywhere else,
+ * only users your "viewPorro" gate allows.
  * With no gate defined, production is closed to everyone.
  *
  *     Gate::define('viewPorro', fn (User $user) => in_array($user->email, ['ops@youragency.com']));

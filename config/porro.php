@@ -17,7 +17,7 @@ return [
     // staging copy with the live .env stays quiet. Set true or false to override.
     'enabled' => env('PORRO_ENABLED'),
 
-    // The /porro page, like Horizon's: Site health, Activity and Blocking.
+    // The /porro page: Site health, Activity and Blocking.
     // Open to everyone locally; elsewhere only to users your "viewPorro"
     // gate allows, so it's closed in production until you define one.
     'page' => [

@@ -21,9 +21,9 @@ use Porro\Laravel\SiteHealth;
 use Throwable;
 
 /**
- * The /porro page: Site health, Activity and Blocking, like Horizon's
- * dashboard but for the site's health. Every rule about what may be
- * blocked lives in core's Blocklist; this only shows its answers.
+ * The /porro page: Site health, Activity and Blocking. Every rule about
+ * what may be blocked lives in core's Blocklist; this only shows its
+ * answers.
  */
 class PageController extends Controller
 {
