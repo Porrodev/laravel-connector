@@ -1,6 +1,6 @@
 {
     "name": "porro/laravel-connector",
-    "description": "Read-only Porro connector for Laravel: versions, advisories, scheduler, queues, migrations and backups.",
+    "description": "Porro connector for Laravel: a signed, read-only report of versions, advisories, scheduler, queues, migrations and backups, plus suspicious activity and IP blocking on the site.",
     "type": "library",
     "license": "MIT",
     "homepage": "https://porro.dev",
