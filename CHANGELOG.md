@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.7 - 2026-10-29
+
+- Blocking and suspicious-activity tracking now see the visitor's real IP behind a load balancer or proxy the app trusts (AWS, Forge, DigitalOcean, nginx). The middleware used to run before the app's `TrustProxies`, so behind anything other than Cloudflare every visitor looked like the load balancer and blocks never matched. It now runs straight after `TrustProxies`, using the app's own `trustProxies()` settings; `X-Forwarded-For` from an untrusted address is still ignored. Cloudflare in front of a trusted load balancer now counts as through Cloudflare.
+- The README describes more precisely what's watched and what leaves the site.
+
 ## 0.3.6 - 2026-10-29
 
 - Links to porro.dev from the README and the package listing now carry UTM params, so Porro can tell which connector a visit came from.
