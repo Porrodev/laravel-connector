@@ -1,6 +1,6 @@
 # porro/laravel-connector
 
-Read-only [Porro](https://porro.dev/?utm_source=laravel-connector&utm_medium=readme&utm_campaign=connectors) connector for Laravel 11–13. It sends one signed report about your site to Porro on the scheduler. It never changes the site and never accepts commands: Porro never connects in.
+[Porro](https://porro.dev/?utm_source=laravel-connector&utm_medium=readme&utm_campaign=connectors) connector for Laravel 11–13. It sends one signed, read-only report about your site to Porro on the scheduler. It never accepts commands from Porro, and Porro never connects in.
 
 ## Install
 
@@ -33,7 +33,7 @@ Like Horizon's dashboard, but for the site's health. Visit `/porro` for three ta
 
 - **Site health:** the checks above, and Porro's findings once connected
 - **Activity:** suspicious requests in the last 24 hours, with buttons to block or safelist each IP
-- **Blocking:** the blocklist and safelist, and the ranges that can never be blocked
+- **Blocking:** the blocklist and safelist, and the protected ranges it refuses to block
 
 **Locked down like Horizon.** In the `local` environment anyone can open it. Anywhere else it returns 403 unless your app defines a `viewPorro` gate and the gate allows the signed-in user. Guests never get in. With no gate, production is closed to everyone. Define the gate in a service provider's `boot()`:
 
@@ -55,28 +55,29 @@ Changing the lists also checks a `managePorroBlocklist` gate when you define one
 
 ![The Activity tab of the /porro page: the suspicious activity summary and the IPs worth a look, each with Block 7 days, Block permanently and Safelist buttons](docs/images/laravel-activity.png)
 
-Works without a Porro account. IP addresses stay on the site.
+Works without a Porro account. IP addresses aren't sent to Porro, and stay on the site apart from the lookups and Cloudflare blocking listed under [Where IP addresses go](#where-ip-addresses-go).
 
 - **Run the migration first:** `php artisan migrate` adds the `porro_blocklist`, `porro_safelist` and `porro_cache` tables.
-- **What's watched:** requests for scanner paths like `/.env`, `/.git` and `wp-login.php`, failed sign-ins on any guard, bursts of 404s and floods of form posts.
+- **What's watched:** requests for scanner paths like `/.env`, `/.git` and `wp-login.php`, failed sign-ins, bursts of 404s and floods of form posts.
+  - Failed sign-ins are counted from Laravel's `Illuminate\Auth\Events\Failed` event. The session guard's `attempt()` fires it, so the usual login forms (Breeze, Fortify, Filament's and Statamic's) are covered. Token guards, Sanctum tokens and custom guards that don't fire the event aren't counted.
   - Counts are kept for 48 hours in Porro's own `porro_cache` table, so a deploy's `cache:clear` doesn't wipe them. Expired rows are cleared hourly; a database backup taken in those 48 hours will include them. Set `PORRO_ACTIVITY_STORE` to use another cache store instead, such as a dedicated Redis connection.
-  - A suspicious request never writes to the database: it appends one short line to `storage/porro/activity.buf` on its server, and the lines are recorded in batches every minute by the scheduler, now and then after a suspicious request, and whenever the Activity, IP or Site health page opens. Flags can lag by up to a minute; blocking is immediate. The file is capped at 2 MB, so a flood can't fill the disk. Where storage can’t be written, or on Lambda (Vapor), each request is recorded straight away instead.
-  - Only those requests are recorded, so normal page views cost nothing.
+  - Suspicious requests are written in batches: each one appends a short line to `storage/porro/activity.buf` on its server, and the lines are recorded every minute by the scheduler, now and then at the end of a suspicious request, and whenever the Activity, IP or Site health page opens. Flags can lag by up to a minute; blocking is immediate. The file is capped at 2 MB, so a flood can't fill the disk. Where storage can’t be written, or on Lambda (Vapor), each request is recorded straight away instead.
+  - Only those requests are recorded (form posts count towards a flood, apart from the paths in `activity.ignore_posts`), plus every request from an IP that's already been flagged. A normal page view isn't recorded: it checks the visitor against the blocklist, which the app's cache holds and refreshes from the database every five minutes, and about one request in 500 may run the hourly clear-out of expired rows.
   - Usernames are kept only as hashes.
 - **Production only by default.** A local or staging copy records nothing unless `PORRO_ACTIVITY=true`.
 - **Exposed files:** if `/.env` or `/.git` ever answers 200, the panel raises it as critical.
 - **Blocking:** blocked IPs get a plain 403 before the app runs, from middleware that's first in the global stack.
   - Behind Cloudflare, the visitor's real IP is used and Cloudflare itself is never blocked.
-- **Always protected:** Cloudflare, Laravel Forge and its health checks, private ranges, your safelist and `porro.blocklist.protected`. Wide ranges and your own IP are refused too.
+- **Always protected:** Cloudflare, Laravel Forge and its health checks, private ranges, your safelist and `porro.blocklist.protected`. A block that covers any of them is refused when you try to add it, and the app never turns those addresses away. Wide ranges and your own IP are refused too.
 - **Country:** behind Cloudflare it comes from the request for free. Otherwise a free [DB-IP](https://db-ip.com) country file is downloaded monthly into `storage/porro`.
 - **IP details:** click an IP on the Activity tab (`/porro/activity/{ip}`). Results are cached a day.
   - **Who it is:**
-    - country, network and its type, and Cloudflare's risk categories, when Cloudflare is set up (Intel if the token has **Account → Intel → Read**, otherwise Radar)
-    - a reverse-DNS hostname, kept only when it resolves back to the same IP
+    - country, network and its type, and Cloudflare's risk categories, when Cloudflare is set up (Intel if the token has **Account → Intel → Read**, otherwise Radar). This sends the IP to Cloudflare's API.
+    - a reverse-DNS hostname, looked up through the server's DNS resolver and kept only when it resolves back to the same IP
     - badges for Tor exits, Spamhaus DROP, hosting providers, fake Googlebots and research scanners
   - **What it did here:** activity over the last 48 hours and its last requests.
   - **Actions:** block it, block its /24 (offered only for hosting networks), or safelist it.
-  - **Reputation:** with `PORRO_ABUSEIPDB_KEY`, a button checks AbuseIPDB. That's the one lookup that sends the IP anywhere, so it only runs when clicked, and only for people who can manage the blocklist.
+  - **Reputation:** with `PORRO_ABUSEIPDB_KEY`, a button checks AbuseIPDB. It sends the IP to AbuseIPDB, so it only runs when clicked, and only for people who can manage the blocklist.
 
 ![IP details on the /porro page: an address pretending to be Googlebot, caught by its hostname, with buttons to block it or safelist it](docs/images/laravel-ip-details.png)
 
@@ -96,6 +97,17 @@ Works without a Porro account. IP addresses stay on the site.
   - `porro:blocklist-sync` writes a `deny` file every minute on each server, in production only.
   - Include it in the site's nginx config and reload nginx when it changes.
   - Without nginx mode, there's no extra scheduled task, so hosts that scale to zero can still sleep.
+
+### Where IP addresses go
+
+IP addresses are never in the report to Porro. They leave the server only in these cases:
+
+- **IP details, with `PORRO_CLOUDFLARE_TOKEN` set:** opening an IP's details page sends that IP to Cloudflare's API (IP Intelligence, or Radar), once a day at most per IP.
+- **IP details, reverse DNS:** the same page looks up the IP's hostname, so the server's DNS resolver sees the IP, as with any reverse-DNS lookup.
+- **AbuseIPDB:** with `PORRO_ABUSEIPDB_KEY`, the reputation button sends the IP to AbuseIPDB, only when clicked.
+- **Cloudflare WAF mode:** every blocked IP or range goes into the account's `porro_blocklist` list at Cloudflare, with its note. That's how Cloudflare blocks it.
+
+Countries, the Tor and Spamhaus badges and the protected ranges are matched on the server, against files and lists it downloads.
 
 ## What leaves a site
 
