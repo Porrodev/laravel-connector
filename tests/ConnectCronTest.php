@@ -91,6 +91,7 @@ it('tells Porro what sent each report', function () {
 it('adds the scheduler on its own with porro:cron, without the site key', function () {
     $this->artisan('porro:cron')
         ->expectsOutputToContain('Added the scheduler to this server’s crontab')
+        ->doesntExpectOutputToContain('Reports will go')
         ->assertSuccessful();
 
     expect($this->crontab->contents)->toContain('artisan schedule:run');
@@ -101,7 +102,15 @@ it('prints the line from porro:cron when the server has no crontab access', func
     $this->crontab->works = false;
 
     $this->artisan('porro:cron')
-        ->expectsOutputToContain('One step left')
+        ->expectsOutputToContain('One step left: add this cron line so the scheduler runs')
+        ->assertSuccessful();
+});
+
+it('talks about reports from porro:cron once the site is connected', function () {
+    config(['porro.key' => 'pk_test']);
+
+    $this->artisan('porro:cron')
+        ->expectsOutputToContain('Reports will go every')
         ->assertSuccessful();
 });
 

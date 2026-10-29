@@ -6,6 +6,8 @@ Site health, suspicious activity and blocking for Laravel 11–13, on a `/porro`
 
 It's free and works on its own, with no account. If you use [Porro](https://porro.dev/?utm_source=laravel-connector&utm_medium=readme&utm_campaign=connectors) to look after your sites, connecting it adds what can only be seen from outside: uptime, SSL certificates, domain expiry and the server's operating system, with alerts by email or Slack.
 
+> **On Filament or Statamic?** Use [Porro Site Health for Filament](https://github.com/Porrodev/filament-connector) or [Porro Site Health for Statamic](https://github.com/Porrodev/statamic-connector) instead. They include everything here and show it in your control panel. Install this package on its own and `porro:status` points you to the right one.
+
 ## Install
 
 ```bash
@@ -16,8 +18,6 @@ php artisan migrate
 The migration adds the `porro_blocklist`, `porro_safelist` and `porro_cache` tables. Then visit `/porro`. It's open in the `local` environment; anywhere else it needs a gate first (see [The /porro page](#the-porro-page)).
 
 The scheduler check, activity batching and nginx mode run on Laravel's scheduler, which needs one cron line. If it isn't running yet, `php artisan porro:cron` adds it to the server's crontab for you, with the right PHP binary and project folder. If it can't, it prints the line to paste into Forge, Ploi or `crontab -e`. On Laravel Cloud and Vapor the platform runs the scheduler: turn it on (Cloud) or leave it on (Vapor).
-
-Using Filament or Statamic? Install [`porro/filament-connector`](https://github.com/Porrodev/filament-connector) or [`porro/statamic-connector`](https://github.com/Porrodev/statamic-connector) instead. They include this package and show everything here in the control panel. If you install this one on its own, `porro:status` points you to the right connector.
 
 ## What it checks
 
