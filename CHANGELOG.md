@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.6 - 2026-10-29
+
+- Links to porro.dev from the README and the package listing now carry UTM params, so Porro can tell which connector a visit came from.
+
 ## 0.3.5 - 2026-10-28
 
 - A suspicious request no longer touches the database. It appends one short line to `storage/porro/activity.buf` on its server, and the lines are recorded in batches: one read and one write per IP and hour, however big the flood. Requires `porro/php-core` 0.3.5.
