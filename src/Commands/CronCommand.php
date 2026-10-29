@@ -15,11 +15,11 @@ class CronCommand extends Command
 
     protected $signature = 'porro:cron';
 
-    protected $description = 'Add Laravel’s scheduler to this server’s crontab so Porro reports keep coming';
+    protected $description = 'Add Laravel’s scheduler to this server’s crontab, for the site health checks, activity and Porro reports';
 
     public function handle(): int
     {
-        $this->setUpCron(ask: false, force: true);
+        $this->setUpCron(ask: false, force: true, connected: filled(config('porro.key')));
 
         return self::SUCCESS;
     }

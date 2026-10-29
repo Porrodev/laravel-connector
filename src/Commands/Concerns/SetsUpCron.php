@@ -16,11 +16,15 @@ use Porro\Laravel\Heartbeat;
 trait SetsUpCron
 {
     /**
-     * Reports run on Laravel's scheduler, which needs one cron line. Add it
-     * for the agency when the server allows, otherwise show it to copy.
+     * Reports, the scheduler check and activity batching run on Laravel's
+     * scheduler, which needs one cron line. Add it for the agency when the
+     * server allows, otherwise show it to copy. The messages only talk
+     * about reports once the site is connected.
      */
-    protected function setUpCron(bool $ask, bool $skip = false, bool $force = false): void
+    protected function setUpCron(bool $ask, bool $skip = false, bool $force = false, bool $connected = true): void
     {
+        $interval = config('porro.interval');
+
         $command = $this->schedulerCommand();
         $directory = $this->laravel->basePath();
         $line = Cron::line('* * * * *', $directory, $command);
@@ -28,13 +32,17 @@ trait SetsUpCron
 
         $lastRun = Heartbeat::lastRun();
         if ($lastRun !== null && strtotime($lastRun) >= time() - (((int) config('porro.interval') + 5) * 60)) {
-            $this->components->info('The scheduler is running, so reports will go every '.config('porro.interval').' minutes.');
+            $this->components->info($connected
+                ? "The scheduler is running, so reports will go every {$interval} minutes."
+                : 'The scheduler is running, so the site health checks and activity stay up to date.');
 
             return;
         }
 
         if (Cron::isScheduled($directory, $command, $io) === true) {
-            $this->components->info('Found the scheduler in this server’s cron. The first scheduled report is due by '.$this->nextReportAt().', then every '.config('porro.interval').' minutes.');
+            $this->components->info($connected
+                ? 'Found the scheduler in this server’s cron. The first scheduled report is due by '.$this->nextReportAt().", then every {$interval} minutes."
+                : 'Found the scheduler in this server’s cron.');
 
             return;
         }
@@ -51,7 +59,7 @@ trait SetsUpCron
         $result = $install ? Cron::install($line, $directory, $command, $io) : null;
 
         if ($result === CronResult::Installed || $result === CronResult::AlreadyInstalled) {
-            $this->components->info('Added the scheduler to this server’s crontab. Reports will go every '.config('porro.interval').' minutes.');
+            $this->components->info('Added the scheduler to this server’s crontab.'.($connected ? " Reports will go every {$interval} minutes." : ''));
 
             return;
         }
@@ -60,7 +68,7 @@ trait SetsUpCron
             $this->components->warn('Couldn’t update the crontab on this server.');
         }
 
-        $this->components->warn('One step left: add this cron line so reports keep coming. In Forge or Ploi, add it as a scheduled job; anywhere else, run `crontab -e`.');
+        $this->components->warn('One step left: add this cron line so '.($connected ? 'reports keep coming' : 'the scheduler runs').'. In Forge or Ploi, add it as a scheduled job; anywhere else, run `crontab -e`.');
         $this->line("  {$line}");
         $this->newLine();
     }
