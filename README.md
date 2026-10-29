@@ -2,7 +2,7 @@
 
 ![Site health for Laravel, free on a /porro page: health, activity and blocking, beside the real Site health tab](https://raw.githubusercontent.com/Porrodev/laravel-connector/main/docs/images/header.png)
 
-Site health, suspicious activity and blocking for Laravel 11–13, on a `/porro` page like Horizon's dashboard. It checks the site for the things that quietly go wrong between deploys (security advisories in your Composer packages, PHP and Laravel versions running out of security support, a scheduler that isn't running, debug mode left on in production, migrations not run, failed jobs, stale backups) and tells you what to do about each. It also spots who's probing the site for secrets, trying passwords or flooding its forms, and lets you block them in a click.
+Site health, suspicious activity and blocking for Laravel 11–13, on its own `/porro` page. It checks the site for the things that quietly go wrong between deploys (security advisories in your Composer packages, PHP and Laravel versions running out of security support, a scheduler that isn't running, debug mode left on in production, migrations not run, failed jobs, stale backups) and tells you what to do about each. It also spots who's probing the site for secrets, trying passwords or flooding its forms, and lets you block them in a click.
 
 It's free and works on its own, with no account. If you use [Porro](https://porro.dev/?utm_source=laravel-connector&utm_medium=readme&utm_campaign=connectors) to look after your sites, connecting it adds what can only be seen from outside: uptime, SSL certificates, domain expiry and the server's operating system, with alerts by email or Slack.
 
@@ -33,13 +33,13 @@ Results are cached for five minutes; the public data behind them for between six
 
 ## The /porro page
 
-Like Horizon's dashboard, but for the site's health. Visit `/porro` for three tabs:
+Visit `/porro` for three tabs:
 
 - **Site health:** the checks above, and Porro's findings once connected
 - **Activity:** suspicious requests in the last 24 hours, with buttons to block or safelist each IP
 - **Blocking:** the blocklist and safelist, and the protected ranges it refuses to block
 
-**Locked down like Horizon.** In the `local` environment anyone can open it. Anywhere else it returns 403 unless your app defines a `viewPorro` gate and the gate allows the signed-in user. Guests never get in. With no gate, production is closed to everyone. Define the gate in a service provider's `boot()`:
+**Locked down by default.** In the `local` environment anyone can open it. Anywhere else it returns 403 unless your app defines a `viewPorro` gate and the gate allows the signed-in user. Guests never get in. With no gate, production is closed to everyone. Define the gate in a service provider's `boot()`:
 
 ```php
 use Illuminate\Support\Facades\Gate;
