@@ -17,7 +17,7 @@ php artisan migrate
 
 The migration adds the `porro_blocklist`, `porro_safelist` and `porro_cache` tables. Then visit `/porro`. It's open in the `local` environment; anywhere else it needs a gate first (see [The /porro page](#the-porro-page)).
 
-The scheduler check, activity batching and nginx mode run on Laravel's scheduler, which needs one cron line. If it isn't running yet, `php artisan porro:cron` adds it to the server's crontab for you, with the right PHP binary and project folder. If it can't, it prints the line to paste into Forge, Ploi or `crontab -e`. On Laravel Cloud and Vapor the platform runs the scheduler: turn it on (Cloud) or leave it on (Vapor).
+The scheduler check, activity batching and nginx mode run on Laravel's scheduler, which needs one cron line. If it isn't running yet, `php artisan porro:cron` adds it to the server's crontab for you, from the project folder (the `current` folder on zero-downtime deploys). If it can't, it prints the line to add yourself. See [Scheduling reports](#scheduling-reports) for Forge, Ploi, Laravel Cloud, Vapor and other hosts.
 
 ## What it checks
 
@@ -123,11 +123,89 @@ php artisan porro:connect <site key>
 
 `porro:connect` writes `PORRO_KEY` to `.env` and sends the first report. The Site health tab then shows the site's open findings in Porro (uptime, SSL, the domain, the server's OS and packages) alongside the checks above, each linking into Porro.
 
-Reports then go every 15 minutes on the scheduler. If it isn't running, `porro:connect` offers to add the cron line, as `porro:cron` does. Use `--cron` to add it without asking (handy in provisioning scripts) or `--no-cron` to leave the crontab alone. Connected from another machine? Run `php artisan porro:cron` on the server; it needs no key. On Laravel Cloud and Vapor, set `PORRO_KEY` as an environment variable instead.
+Reports then go every 15 minutes on the scheduler. If it isn't running, `porro:connect` offers to add the cron line, as `porro:cron` does. Use `--cron` to add it without asking (handy in provisioning scripts) or `--no-cron` to leave the crontab alone. Connected from another machine? Run `php artisan porro:cron` on the server; it needs no key, and once the site is connected it sends a report straight away. On Laravel Cloud and Vapor, set `PORRO_KEY` as an environment variable instead.
 
 Add `php artisan porro:report` to your deploy script so Porro hears about deploys straight away.
 
 Each report is signed and read-only: it never changes the site and never accepts commands, and Porro never connects in.
+
+## Scheduling reports
+
+Laravel's scheduler needs to run `php artisan schedule:run` from the project folder every minute. Reports, the scheduler check and activity batching all run on it.
+
+`php artisan porro:cron` adds the line to the server's crontab for you, or tells you it's already there. Once the site is connected it also sends a report straight away, so Porro stops saying cron is missing without waiting for the first scheduled one. If it can't reach the crontab, it prints the line to add by hand, using one of the guides below.
+
+**Zero-downtime deploys** (Forge, Envoyer, Ploi, Deployer): always point cron at the `current` folder, e.g. `/home/forge/example.com/current`, never a `releases/…` folder. A release folder runs old code after the next deploy and stops working once it's cleaned up, with no error you'd see. `php artisan porro:cron` uses `current` for you.
+
+<details>
+<summary>Laravel Forge</summary>
+
+Open the site and turn on **Laravel scheduler** in its Laravel settings. That's all: Forge adds the every-minute `schedule:run` job for the site, from the right folder.
+
+To add it by hand instead, go to the server's **Scheduler** and add a **New scheduled job**:
+
+- **Command:** `php /home/forge/example.com/current/artisan schedule:run`. Leave out `/current` if the site doesn't use zero-downtime deploys. On an isolated site, use the site's own user in the path.
+- **User:** `forge`, or the site's isolated user. Never `root`.
+- **Frequency:** every minute.
+
+If you add sites through Porro's one-click install on Forge, it turns on the Laravel scheduler for you when the Forge API token has the optional `server:create-schedulers` scope.
+
+</details>
+
+<details>
+<summary>Ploi</summary>
+
+Open the server's **Cronjobs** and add one:
+
+- **Command:** `php /home/ploi/example.com/artisan schedule:run`, with `/current` before `/artisan` on zero-downtime sites.
+- **User:** `ploi`, or the site's own user.
+- **Frequency:** every minute.
+
+</details>
+
+<details>
+<summary>Laravel Cloud</summary>
+
+There's no crontab. Open the environment, edit the **App** cluster and turn on **Scheduler**. Cloud then runs `schedule:run` every minute. Set `PORRO_KEY` as an environment variable rather than running `porro:connect` there.
+
+</details>
+
+<details>
+<summary>Laravel Vapor</summary>
+
+Vapor runs the scheduler for you unless `vapor.yml` sets `scheduler: false`. Leave it on, and set `PORRO_KEY` as an environment variable.
+
+</details>
+
+<details>
+<summary>Envoyer</summary>
+
+Envoyer deploys but doesn't run cron. Add the job on the server itself (Forge's Scheduler, or `crontab -e`), pointing at Envoyer's `current` folder: `php /home/forge/example.com/current/artisan schedule:run`.
+
+</details>
+
+<details>
+<summary>cPanel or Plesk</summary>
+
+- **cPanel:** **Advanced → Cron Jobs**. Choose **Once Per Minute** and use `cd /home/user/example.com && php artisan schedule:run > /dev/null 2>&1`.
+- **Plesk:** **Websites & Domains → Scheduled Tasks → Add Task**. Choose **Run a command**, **Cron style** `* * * * *`, and the same command.
+
+If `php` isn't found, or runs an older PHP than the site, use the full path your host lists for the site's PHP version.
+
+</details>
+
+<details>
+<summary>Any other server (crontab)</summary>
+
+Run `crontab -e` as the user that owns the site (not root) and add:
+
+```
+* * * * * cd /path/to/site && php artisan schedule:run > /dev/null 2>&1
+```
+
+Use the `current` path on zero-downtime deploys.
+
+</details>
 
 ## What leaves a site
 
@@ -151,7 +229,7 @@ Content, customer or user data, environment values or secrets. Run `php artisan 
 | Command | Does |
 |---|---|
 | `porro:connect <key>` | Saves the key, sends the first report and sets up cron (`--cron`, `--no-cron`) |
-| `porro:cron` | Adds the scheduler to the crontab on its own, no key needed |
+| `porro:cron` | Adds the scheduler to the crontab on its own, no key needed. Sends a report straight away once connected |
 | `porro:report` | Sends a report now (`--packages` forces the package list) |
 | `porro:status` | Shows what the next report contains (`--json` for the raw report) |
 | `porro:block <ip>` | Blocks an IP or range (`--reason`, `--days`; `--remove` unblocks) |

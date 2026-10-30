@@ -107,10 +107,63 @@ it('prints the line from porro:cron when the server has no crontab access', func
 });
 
 it('talks about reports from porro:cron once the site is connected', function () {
-    config(['porro.key' => 'pk_test']);
+    config(['porro.key' => siteKey()['token']]);
 
     $this->artisan('porro:cron')
         ->expectsOutputToContain('Reports will go every')
+        ->assertSuccessful();
+});
+
+it('sends a report from porro:cron once the line is added, so Porro stops saying cron is missing', function () {
+    config(['porro.key' => siteKey()['token'], 'porro.url' => 'https://porro.test']);
+
+    $this->artisan('porro:cron')
+        ->expectsOutputToContain('Added the scheduler to this server’s crontab')
+        ->expectsOutputToContain('Told Porro the scheduler is in cron')
+        ->assertSuccessful();
+
+    $body = json_decode(Http::recorded()[0][0]->body(), true);
+
+    expect(Http::recorded())->toHaveCount(1)
+        ->and($body['trigger'])->toBe('connect')
+        ->and($body['health']['scheduler_in_crontab'])->toBeTrue();
+});
+
+it('sends a report from porro:cron when the scheduler is already in cron', function () {
+    config(['porro.key' => siteKey()['token'], 'porro.url' => 'https://porro.test']);
+    $this->crontab->contents = '* * * * * cd '.base_path()." && php artisan schedule:run >> /dev/null 2>&1\n";
+
+    $this->artisan('porro:cron')
+        ->expectsOutputToContain('Found the scheduler in this server’s cron')
+        ->assertSuccessful();
+
+    expect(json_decode(Http::recorded()[0][0]->body(), true)['health']['scheduler_in_crontab'])->toBeTrue();
+});
+
+it('sends nothing from porro:cron when the line could not be added', function () {
+    config(['porro.key' => siteKey()['token'], 'porro.url' => 'https://porro.test']);
+    $this->crontab->works = false;
+
+    $this->artisan('porro:cron')->expectsOutputToContain('One step left')->assertSuccessful();
+
+    Http::assertNothingSent();
+});
+
+it('says why porro:cron sent nothing when there is no site key', function () {
+    $this->artisan('porro:cron')
+        ->expectsOutputToContain('No PORRO_KEY set, so no report sent')
+        ->assertSuccessful();
+
+    Http::assertNothingSent();
+});
+
+it('keeps porro:cron working when Porro does not take the report', function () {
+    config(['porro.key' => siteKey()['token'], 'porro.url' => 'https://down.test']);
+    Http::fake(['down.test/*' => Http::response(['error' => 'nope'], 500)]);
+
+    $this->artisan('porro:cron')
+        ->expectsOutputToContain('Added the scheduler')
+        ->expectsOutputToContain('Couldn’t send a report to Porro')
         ->assertSuccessful();
 });
 

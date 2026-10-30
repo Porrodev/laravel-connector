@@ -20,8 +20,10 @@ trait SetsUpCron
      * scheduler, which needs one cron line. Add it for the agency when the
      * server allows, otherwise show it to copy. The messages only talk
      * about reports once the site is connected.
+     *
+     * Returns whether the scheduler runs, or is now in the crontab.
      */
-    protected function setUpCron(bool $ask, bool $skip = false, bool $force = false, bool $connected = true): void
+    protected function setUpCron(bool $ask, bool $skip = false, bool $force = false, bool $connected = true): bool
     {
         $interval = config('porro.interval');
 
@@ -36,7 +38,7 @@ trait SetsUpCron
                 ? "The scheduler is running, so reports will go every {$interval} minutes."
                 : 'The scheduler is running, so the site health checks and activity stay up to date.');
 
-            return;
+            return true;
         }
 
         if (Cron::isScheduled($directory, $command, $io) === true) {
@@ -44,7 +46,7 @@ trait SetsUpCron
                 ? 'Found the scheduler in this server’s cron. The first scheduled report is due by '.$this->nextReportAt().", then every {$interval} minutes."
                 : 'Found the scheduler in this server’s cron.');
 
-            return;
+            return true;
         }
 
         $crontab = Cron::current($io);
@@ -61,7 +63,7 @@ trait SetsUpCron
         if ($result === CronResult::Installed || $result === CronResult::AlreadyInstalled) {
             $this->components->info('Added the scheduler to this server’s crontab.'.($connected ? " Reports will go every {$interval} minutes." : ''));
 
-            return;
+            return true;
         }
 
         if ($result === CronResult::Failed || $result === CronResult::Unavailable) {
@@ -71,6 +73,8 @@ trait SetsUpCron
         $this->components->warn('One step left: add this cron line so '.($connected ? 'reports keep coming' : 'the scheduler runs').'. In Forge or Ploi, add it as a scheduled job; anywhere else, run `crontab -e`.');
         $this->line("  {$line}");
         $this->newLine();
+
+        return false;
     }
 
     /**

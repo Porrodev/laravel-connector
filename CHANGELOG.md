@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- `porro:cron` sends a report straight away once the scheduler's cron line is added or found and the site is connected, so Porro stops saying cron is missing without waiting for the first scheduled report. With no `PORRO_KEY` it says so and sends nothing.
+- With `porro/php-core` 0.3.6, the cron line points at the `current` folder on zero-downtime deploys rather than the release folder, uses plain `php`, and replaces a stale line Porro added earlier instead of adding a second.
+- The README has a Scheduling reports section: how to run the scheduler on Forge, Ploi, Laravel Cloud, Vapor, Envoyer, cPanel, Plesk and plain servers.
+
 ## 0.3.7 - 2026-10-29
 
 - Blocking and suspicious-activity tracking now see the visitor's real IP behind a load balancer or proxy the app trusts (AWS, Forge, DigitalOcean, nginx). The middleware used to run before the app's `TrustProxies`, so behind anything other than Cloudflare every visitor looked like the load balancer and blocks never matched. It now runs straight after `TrustProxies`, using the app's own `trustProxies()` settings; `X-Forwarded-For` from an untrusted address is still ignored. Cloudflare in front of a trusted load balancer now counts as through Cloudflare.
