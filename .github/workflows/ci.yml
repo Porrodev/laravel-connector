@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  php:
+    uses: 1994limited/coding-standard/.github/workflows/php.yml@v1
+    with:
+      quality-php: '8.4'
+      # Laravel 11 is past security support, so Composer blocks it by default
+      # ("insecure"). The connector still supports it: those are the sites
+      # Porro flags.
+      matrix: |
+        [
+          {"php": "8.2", "require": "laravel/framework:11.* orchestra/testbench:9.*", "insecure": true},
+          {"php": "8.3", "require": "laravel/framework:11.* orchestra/testbench:9.*", "insecure": true},
+          {"php": "8.4", "require": "laravel/framework:11.* orchestra/testbench:9.*", "insecure": true},
+          {"php": "8.5", "require": "laravel/framework:11.* orchestra/testbench:9.*", "insecure": true},
+          {"php": "8.2", "require": "laravel/framework:12.* orchestra/testbench:10.*"},
+          {"php": "8.3", "require": "laravel/framework:12.* orchestra/testbench:10.*"},
+          {"php": "8.4", "require": "laravel/framework:12.* orchestra/testbench:10.*"},
+          {"php": "8.5", "require": "laravel/framework:12.* orchestra/testbench:10.*"},
+          {"php": "8.3", "require": "laravel/framework:13.* orchestra/testbench:11.*"},
+          {"php": "8.4", "require": "laravel/framework:13.* orchestra/testbench:11.*"},
+          {"php": "8.5", "require": "laravel/framework:13.* orchestra/testbench:11.*"}
+        ]

@@ -1,0 +1,73 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Call to an undefined method Illuminate\\Contracts\\Cache\\Repository\:\:many\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Activity/Activity.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>country" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: src/Activity/Presenter.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>userAgent" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: src/Activity/Presenter.php
+
+		-
+			message: '#^Unable to resolve the template type TKey in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: src/Collectors/BackupCollector.php
+
+		-
+			message: '#^Unable to resolve the template type TValue in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: src/Collectors/BackupCollector.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>storedCheckResults" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: src/Collectors/HealthCollector.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\ConnectionInterface\:\:getDriverName\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Collectors/LaravelCollector.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Contracts\\Foundation\\Application\:\:environmentFilePath\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Commands/ConnectCommand.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Contracts\\Foundation\\Application\:\:getCachedConfigPath\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Commands/ConnectCommand.php
+
+		-
+			message: '#^Method Porro\\Laravel\\Http\\PageController\:\:page\(\) should return Illuminate\\View\\View but returns Illuminate\\Contracts\\View\\View\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Http/PageController.php
+
+		-
+			message: '#^Method Porro\\Laravel\\Http\\PageController\:\:who\(\) never returns null so it can be removed from the return type\.$#'
+			identifier: return.unusedType
+			count: 1
+			path: src/Http/PageController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Contracts\\Foundation\\Application\:\:routesAreCached\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/PorroServiceProvider.php
