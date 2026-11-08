@@ -35,9 +35,10 @@
     },
     "minimum-stability": "stable",
     "require-dev": {
+        "1994/coding-standard": "^1.0",
+        "laravel/pint": "^1.18",
         "orchestra/testbench": "^9.0|^10.0|^11.0",
-        "pestphp/pest": "^3.0|^4.0",
-        "laravel/pint": "^1.18"
+        "pestphp/pest": "^3.0|^4.0"
     },
     "autoload-dev": {
         "psr-4": {
@@ -45,8 +46,32 @@
         }
     },
     "scripts": {
+        "lint": "pint",
+        "lint:check": "pint --test",
+        "analyse": "phpstan analyse --no-progress --memory-limit=1G",
         "test": "pest",
-        "lint": "pint"
+        "ci:quality": [
+            "@lint:check",
+            "@analyse"
+        ],
+        "ci:test": [
+            "@test"
+        ],
+        "ci": [
+            "@ci:quality",
+            "@ci:test"
+        ],
+        "ci:lowest": [
+            "@composer update --prefer-lowest --prefer-stable --no-interaction --no-progress",
+            "@ci:test",
+            "@composer update --no-interaction --no-progress"
+        ],
+        "post-install-cmd": [
+            "qa-install-hooks"
+        ],
+        "post-update-cmd": [
+            "qa-install-hooks"
+        ]
     },
     "config": {
         "sort-packages": true,
@@ -57,5 +82,11 @@
     "support": {
         "issues": "https://github.com/Porrodev/laravel-connector/issues",
         "source": "https://github.com/Porrodev/laravel-connector"
-    }
+    },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/1994limited/coding-standard"
+        }
+    ]
 }

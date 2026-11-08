@@ -13,6 +13,7 @@ use Illuminate\Support\ServiceProvider;
 use Porro\Core\CrontabIo;
 use Porro\Laravel\Activity\Activity;
 use Porro\Laravel\Activity\CloudflareMode;
+use Porro\Laravel\Activity\NginxServers;
 use Porro\Laravel\Activity\RecordFailedLogin;
 use Porro\Laravel\Activity\WatchRequests;
 use Porro\Laravel\Collectors\BackupCollector;
@@ -51,7 +52,7 @@ class PorroServiceProvider extends ServiceProvider
         $this->app->singleton(Reporter::class);
         $this->app->singleton(Activity::class);
         $this->app->singleton(CloudflareMode::class);
-        $this->app->singleton(Activity\NginxServers::class);
+        $this->app->singleton(NginxServers::class);
         $this->app->bind(CrontabIo::class);
         $this->app->tag([LaravelCollector::class, BackupCollector::class, HealthCollector::class], 'porro.collectors');
     }

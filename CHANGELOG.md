@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The nginx servers list is now shared as one instance per request, as intended. The container binding pointed at a class name that didn't exist, so a fresh copy was built each time it was used.
 - `porro:cron` sends a report straight away once the scheduler's cron line is added or found and the site is connected, so Porro stops saying cron is missing without waiting for the first scheduled report. With no `PORRO_KEY` it says so and sends nothing.
 - With `porro/php-core` 0.3.6, the cron line points at the `current` folder on zero-downtime deploys rather than the release folder, uses plain `php`, and replaces a stale line Porro added earlier instead of adding a second.
 - The README has a Scheduling reports section: how to run the scheduler on Forge, Ploi, Laravel Cloud, Vapor, Envoyer, cPanel, Plesk and plain servers.
