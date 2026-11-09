@@ -12,10 +12,11 @@
     ],
     "require": {
         "php": "^8.2",
-        "porro/php-core": "^0.3.5",
-        "illuminate/support": "^11.0|^12.0|^13.0",
-        "illuminate/console": "^11.0|^12.0|^13.0",
-        "illuminate/http": "^11.0|^12.0|^13.0"
+        "guzzlehttp/guzzle": "^7.2",
+        "illuminate/console": "^10.0|^11.0|^12.0|^13.0",
+        "illuminate/http": "^10.0|^11.0|^12.0|^13.0",
+        "illuminate/support": "^10.0|^11.0|^12.0|^13.0",
+        "porro/php-core": "^0.3.5"
     },
     "suggest": {
         "porro/filament-connector": "Adds Site health and Blocking pages to your Filament panel. Includes this package.",
@@ -37,8 +38,8 @@
     "require-dev": {
         "1994/coding-standard": "^1.0",
         "laravel/pint": "^1.18",
-        "orchestra/testbench": "^9.0|^10.0|^11.0",
-        "pestphp/pest": "^3.0|^4.0"
+        "orchestra/testbench": "^8.0|^9.0|^10.0|^11.0",
+        "pestphp/pest": "^2.0|^3.0|^4.0"
     },
     "autoload-dev": {
         "psr-4": {

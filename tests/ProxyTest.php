@@ -29,11 +29,37 @@ function scanned(): array
     return array_map(fn ($ip) => $ip->ip, app(Activity::class)->summary()->flagged);
 }
 
+/** The global stack: Laravel 10's kernel has no getter for it. */
+function globalMiddleware(): array
+{
+    $kernel = app(Kernel::class);
+
+    return method_exists($kernel, 'getGlobalMiddleware') ? $kernel->getGlobalMiddleware() : (fn () => $this->middleware)->call($kernel);
+}
+
+/** As the app would set it: Laravel 10 has no TrustProxies::at(). */
+function trustProxies(string $proxies): void
+{
+    if (method_exists(TrustProxies::class, 'at')) {
+        TrustProxies::at($proxies);
+
+        return;
+    }
+
+    app()->instance(TrustProxies::class, new class($proxies) extends TrustProxies
+    {
+        public function __construct(string $proxies)
+        {
+            $this->proxies = $proxies;
+        }
+    });
+}
+
 class AppTrustProxies extends TrustProxies {}
 
 describe('the stack', function () {
     it('runs straight after the app’s TrustProxies', function () {
-        $stack = app(Kernel::class)->getGlobalMiddleware();
+        $stack = globalMiddleware();
 
         expect($stack[array_search(TrustProxies::class, $stack) + 1])->toBe(WatchRequests::class)
             ->and(array_count_values($stack)[WatchRequests::class])->toBe(1);
@@ -62,7 +88,7 @@ describe('the visitor', function () {
     });
 
     it('is the forwarded address behind a load balancer the app trusts', function () {
-        TrustProxies::at('10.0.0.0/8');
+        trustProxies('10.0.0.0/8');
         $this->artisan('porro:block', ['ip' => '185.220.101.4'])->assertSuccessful();
 
         $this->withServerVariables(via('10.0.0.5', ['X-Forwarded-For' => '185.220.101.4']))->get('/')->assertForbidden();
@@ -78,7 +104,7 @@ describe('the visitor', function () {
     });
 
     it('is Cloudflare’s visitor through Cloudflare and a trusted load balancer', function () {
-        TrustProxies::at('10.0.0.0/8');
+        trustProxies('10.0.0.0/8');
         $this->artisan('porro:block', ['ip' => '185.220.101.4'])->assertSuccessful();
 
         $cloudflare = fn (string $visitor) => via('10.0.0.5', ['X-Forwarded-For' => "{$visitor}, 104.16.1.1", 'CF-Connecting-IP' => $visitor]);
@@ -99,7 +125,7 @@ describe('the visitor', function () {
     });
 
     it('never believes X-Forwarded-For from an address the app doesn’t trust', function () {
-        TrustProxies::at('10.0.0.0/8');
+        trustProxies('10.0.0.0/8');
         $this->artisan('porro:block', ['ip' => '185.220.101.4'])->assertSuccessful();
 
         // A blocked IP can't hide behind a forged header, nor frame another.
