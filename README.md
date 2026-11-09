@@ -2,7 +2,7 @@
 
 ![Site health for Laravel, free on a /porro page: health, activity and blocking, beside the real Site health tab](https://raw.githubusercontent.com/Porrodev/laravel-connector/main/docs/images/header.png)
 
-Site health, suspicious activity and blocking for Laravel 11–13, on its own `/porro` page. It checks the site for the things that quietly go wrong between deploys (security advisories in your Composer packages, PHP and Laravel versions running out of security support, a scheduler that isn't running, debug mode left on in production, migrations not run, failed jobs, stale backups) and tells you what to do about each. It also spots who's probing the site for secrets, trying passwords or flooding its forms, and lets you block them in a click.
+Site health, suspicious activity and blocking for Laravel 10–13, on its own `/porro` page. It checks the site for the things that quietly go wrong between deploys (security advisories in your Composer packages, PHP and Laravel versions running out of security support, a scheduler that isn't running, debug mode left on in production, migrations not run, failed jobs, stale backups) and tells you what to do about each. It also spots who's probing the site for secrets, trying passwords or flooding its forms, and lets you block them in a click.
 
 It's free and works on its own, with no account. If you use [Porro](https://porro.dev/?utm_source=laravel-connector&utm_medium=readme&utm_campaign=connectors) to look after your sites, connecting it adds what can only be seen from outside: uptime, SSL certificates, domain expiry and the server's operating system, with alerts by email or Slack.
 

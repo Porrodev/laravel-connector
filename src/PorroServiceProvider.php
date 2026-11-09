@@ -6,6 +6,7 @@ use Filament\FilamentServiceProvider;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
+use Illuminate\Foundation\Http\Kernel as FoundationKernel;
 use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
@@ -125,6 +126,18 @@ class PorroServiceProvider extends ServiceProvider
     {
         $this->app->booted(function () {
             $kernel = $this->app->make(HttpKernel::class);
+
+            // Laravel 10's kernel has no getter or setter for the global
+            // stack, so read and write it in the kernel's own scope: going
+            // first instead would see the load balancer, not the visitor.
+            if (! method_exists($kernel, 'setGlobalMiddleware') && $kernel instanceof FoundationKernel) {
+                $stack = self::afterTrustProxies((fn () => $this->middleware)->call($kernel));
+                (function () use ($stack) {
+                    $this->middleware = $stack;
+                })->call($kernel);
+
+                return;
+            }
 
             if (! method_exists($kernel, 'getGlobalMiddleware') || ! method_exists($kernel, 'setGlobalMiddleware')) {
                 if (method_exists($kernel, 'prependMiddleware')) {

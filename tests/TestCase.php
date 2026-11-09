@@ -2,6 +2,8 @@
 
 namespace Porro\Laravel\Tests;
 
+use Illuminate\Contracts\Http\Kernel as HttpKernel;
+use Illuminate\Http\Middleware\TrustProxies;
 use Orchestra\Testbench\TestCase as Orchestra;
 use Porro\Core\CrontabIo;
 use Porro\Laravel\PorroServiceProvider;
@@ -11,6 +13,20 @@ abstract class TestCase extends Orchestra
     protected function getPackageProviders($app): array
     {
         return [PorroServiceProvider::class];
+    }
+
+    /**
+     * Laravel 10's skeleton has the app's own TrustProxies in the global
+     * stack, but testbench 8 leaves it out: put it back, so the stack
+     * looks like a real Laravel 10 app's.
+     */
+    protected function resolveApplicationHttpKernel($app)
+    {
+        parent::resolveApplicationHttpKernel($app);
+
+        if (! method_exists(TrustProxies::class, 'at')) {
+            $app->extend(HttpKernel::class, fn ($kernel) => $kernel->prependMiddleware(TrustProxies::class));
+        }
     }
 
     protected function setUp(): void
