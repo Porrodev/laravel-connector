@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Site health checks how the site sends email, in production: mail that isn't sent at all (the `log` or `array` mailer, or a test inbox such as Mailpit), mail sent by the web server itself (`sendmail` or SMTP on localhost), and a sender address that's missing, still `hello@example.com`, a free mailbox, or on a different domain from `APP_URL`. Shown in the Statamic and Filament panels and on `/porro`; nothing about it is sent to Porro. Requires the next `porro/php-core`.
+- Site health checks how the site sends email, in production: mail that isn't sent at all (the `log` or `array` mailer, or a test inbox such as Mailpit), mail sent by the web server itself (`sendmail` or SMTP on localhost), and a sender address that's missing, still `hello@example.com`, a free mailbox, or on a different domain from `APP_URL`. Shown in the Statamic and Filament panels and on `/porro`; nothing about it is sent to Porro. Requires `porro/php-core` 0.3.7.
 
 ## 0.3.8 - 2026-11-09
 
