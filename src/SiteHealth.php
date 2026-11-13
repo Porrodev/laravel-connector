@@ -25,7 +25,7 @@ use Throwable;
  * What the "Site health" panel shows in the Statamic and Filament control
  * panels. Works without a Porro account: PHP and Laravel support dates,
  * security advisories in composer.lock, Laravel updates, the scheduler,
- * debug mode, migrations and failed jobs. Once connected, the site's
+ * debug mode, migrations, failed jobs and how email is sent. Once connected, the site's
  * open findings in Porro too.
  *
  * Statamic and Filament add their own checks with the "porro.health" tag:
@@ -97,6 +97,7 @@ class SiteHealth
         $health->advisories(LockFile::read($this->app->basePath()));
         $health->updates(['laravel/framework' => 'Laravel'], ['laravel/framework' => Report::installedVersion('laravel/framework')]);
         $health->add($this->scheduler(), 'the scheduler');
+        $health->mail($this->mail(), 'MAIL_MAILER and MAIL_FROM_ADDRESS in .env');
 
         $activity = $this->activity($health);
 
@@ -151,6 +152,35 @@ class SiteHealth
         } catch (Throwable) {
             return null;
         }
+    }
+
+    /**
+     * The mailer the site sends with by default, and its sender address.
+     * Failover and round robin send through the first mailer they list.
+     *
+     * @return array{transport: string|null, host: string|null, from: string|null, site: string|null, environment: string}
+     */
+    private function mail(): array
+    {
+        $mailer = (array) config('mail.mailers.'.config('mail.default'));
+
+        if (in_array($mailer['transport'] ?? null, ['failover', 'roundrobin'], true)) {
+            $mailer = (array) config('mail.mailers.'.(((array) ($mailer['mailers'] ?? []))[0] ?? ''));
+        }
+
+        $host = $mailer['host'] ?? null;
+
+        if (! is_string($host) && is_string($mailer['url'] ?? null)) {
+            $host = parse_url($mailer['url'], PHP_URL_HOST) ?: null;
+        }
+
+        return [
+            'transport' => is_string($mailer['transport'] ?? null) ? $mailer['transport'] : null,
+            'host' => is_string($host) ? $host : null,
+            'from' => is_string(config('mail.from.address')) ? config('mail.from.address') : null,
+            'site' => is_string(config('app.url')) ? config('app.url') : null,
+            'environment' => (string) $this->app->environment(),
+        ];
     }
 
     private function scheduler(): ?Issue
