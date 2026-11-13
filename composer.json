@@ -16,7 +16,7 @@
         "illuminate/console": "^10.0|^11.0|^12.0|^13.0",
         "illuminate/http": "^10.0|^11.0|^12.0|^13.0",
         "illuminate/support": "^10.0|^11.0|^12.0|^13.0",
-        "porro/php-core": "^0.3.5"
+        "porro/php-core": "^0.3.7"
     },
     "suggest": {
         "porro/filament-connector": "Adds Site health and Blocking pages to your Filament panel. Includes this package.",

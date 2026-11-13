@@ -27,6 +27,7 @@ On the site itself, with no account, through `Porro\Laravel\SiteHealth`:
 - **Security advisories** in `composer.lock` ([Packagist's advisories API](https://packagist.org/apidoc#list-security-advisories), the one `composer audit` uses; only package names are sent)
 - **The scheduler:** whether it runs. The scheduler writes a heartbeat every `PORRO_INTERVAL` minutes so the page can tell
 - **Debug mode** in production, **pending migrations** and **failed jobs**
+- **Email** in production: mail that isn't sent at all (the `log` or `array` mailer, or a test inbox like Mailpit), mail sent by the web server's own sendmail, and a sender address that's missing, still `hello@example.com`, a free mailbox, or not on the site's domain. Read from your mail config; nothing is sent anywhere
 - **Backups** from `spatie/laravel-backup`, and `spatie/laravel-health` checks, if installed
 
 Results are cached for five minutes; the public data behind them for between six hours and a day. The Statamic and Filament connectors show the same checks as a panel in the control panel.

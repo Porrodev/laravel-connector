@@ -33,6 +33,30 @@ it('checks the site without a Porro account', function () {
     Http::assertNotSent(fn (Request $request) => str_contains($request->url(), 'porro.test'));
 });
 
+it('checks how the site sends email, in production only', function () {
+    fakeHealthApis();
+    config([
+        'porro.key' => null,
+        'app.url' => 'https://www.acme.co.uk',
+        'mail.default' => 'failover',
+        'mail.mailers.failover' => ['transport' => 'failover', 'mailers' => ['sendmail', 'log']],
+        'mail.mailers.sendmail' => ['transport' => 'sendmail'],
+        'mail.from.address' => 'hello@example.com',
+    ]);
+
+    expect(array_column(app(SiteHealth::class)->get()['issues'], 'kind'))->not->toContain('mail_server_sendmail', 'mail_sender');
+
+    $this->app['env'] = 'production';
+    $health = app(SiteHealth::class)->get(fresh: true);
+
+    expect(array_column($health['issues'], 'title'))->toContain('Email is sent by the web server itself', 'Sender address is still the placeholder')
+        ->and($health['checked'])->toContain('email settings');
+
+    config(['mail.default' => 'smtp', 'mail.mailers.smtp' => ['transport' => 'smtp', 'url' => 'smtp://user:secret@smtp.postmarkapp.com:587'], 'mail.from.address' => 'hello@acme.co.uk']);
+
+    expect(array_column(app(SiteHealth::class)->get(fresh: true)['issues'], 'kind'))->not->toContain('mail_not_sent', 'mail_server_sendmail', 'mail_sender');
+});
+
 it('sees the scheduler from its heartbeat', function () {
     fakeHealthApis();
     Heartbeat::beat();
