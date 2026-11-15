@@ -8,6 +8,7 @@ use Porro\Laravel\Activity\Activity;
 use Porro\Laravel\Heartbeat;
 use Porro\Laravel\Reporter;
 use Porro\Laravel\Reporting;
+use Porro\Laravel\SiteKeys;
 
 class ReportCommand extends Command
 {
@@ -26,7 +27,7 @@ class ReportCommand extends Command
             return self::SUCCESS;
         }
 
-        if (! config('porro.key')) {
+        if (! $this->laravel->make(SiteKeys::class)->connected()) {
             $this->components->warn('No PORRO_KEY set. Run `php artisan porro:connect <site key>` first.');
 
             return $this->failed();

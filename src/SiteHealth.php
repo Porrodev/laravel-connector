@@ -204,9 +204,9 @@ class SiteHealth
      */
     public function key(): ?SiteKey
     {
-        $key = config('porro.key');
+        $key = $this->app->make(SiteKeys::class)->token();
 
-        if (! is_string($key) || $key === '' || ! Reporting::enabled()) {
+        if ($key === null || ! Reporting::enabled()) {
             return null;
         }
 

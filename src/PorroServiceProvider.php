@@ -28,6 +28,7 @@ use Porro\Laravel\Commands\CronCommand;
 use Porro\Laravel\Commands\ReportCommand;
 use Porro\Laravel\Commands\StatusCommand;
 use Porro\Laravel\Http\Authorize;
+use Porro\Laravel\Http\ConnectController;
 use Porro\Laravel\Http\PageController;
 use Statamic\Statamic;
 
@@ -50,7 +51,9 @@ class PorroServiceProvider extends ServiceProvider
             ]]);
         }
 
-        $this->app->singleton(Reporter::class);
+        // Scoped, so a long-running worker sees a key connected since it started.
+        $this->app->scoped(SiteKeys::class);
+        $this->app->scoped(Reporter::class);
         $this->app->singleton(Activity::class);
         $this->app->singleton(CloudflareMode::class);
         $this->app->singleton(NginxServers::class);
@@ -101,7 +104,7 @@ class PorroServiceProvider extends ServiceProvider
 
             // Not connected: still note that the scheduler runs, so the
             // Site health panel can tell when cron is missing.
-            if (! config('porro.key')) {
+            if (! $this->app->make(SiteKeys::class)->connected()) {
                 $schedule->call(function () {
                     Heartbeat::beat();
                     $this->app->make(Activity::class)->maintain();
@@ -206,6 +209,9 @@ class PorroServiceProvider extends ServiceProvider
                 Route::post('blocking/cloudflare/connect', [PageController::class, 'cloudflareConnect'])->name('cloudflare.connect');
                 Route::get('blocking/{list}', [PageController::class, 'list'])->name('list')->whereIn('list', ['blocklist', 'safelist']);
                 Route::post('refresh', [PageController::class, 'refresh'])->name('refresh');
+                // Connect to Porro: ready for a button, which the page doesn't have yet.
+                Route::post('connect', [ConnectController::class, 'start'])->name('connect.start');
+                Route::get('connect', [ConnectController::class, 'return'])->name('connect.return');
                 Route::post('blocking/block', [PageController::class, 'block'])->name('block');
                 Route::post('blocking/unblock', [PageController::class, 'unblock'])->name('unblock');
                 Route::post('blocking/safelist', [PageController::class, 'safelist'])->name('safelist');

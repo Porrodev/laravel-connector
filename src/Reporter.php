@@ -12,6 +12,7 @@ use Porro\Core\NpmLockFile;
 use Porro\Core\Report;
 use Porro\Core\Result;
 use Porro\Core\SiteKey;
+use SensitiveParameter;
 
 /**
  * Builds a report from every collector and sends it. Each package list
@@ -24,7 +25,7 @@ class Reporter
 
     private const SENT_NPM_LOCK_KEY = 'porro:npm-lock-hash';
 
-    public function __construct(private Application $app) {}
+    public function __construct(private Application $app, private SiteKeys $keys) {}
 
     public function build(bool $withPackages = false): Report
     {
@@ -48,10 +49,10 @@ class Reporter
     /**
      * @param  array<string, mixed>  $health  extra health facts for this report only
      */
-    public function send(?string $key = null, ?string $url = null, bool $withPackages = false, string $trigger = 'manual', array $health = []): Result
+    public function send(#[SensitiveParameter] ?string $key = null, ?string $url = null, bool $withPackages = false, string $trigger = 'manual', array $health = []): Result
     {
         $client = new Client(
-            SiteKey::parse((string) ($key ?? config('porro.key'))),
+            SiteKey::parse((string) ($key ?? $this->keys->token())),
             (string) ($url ?? config('porro.url')),
             $this->transport(),
         );
@@ -90,7 +91,7 @@ class Reporter
     /**
      * The connector package installed on this site, e.g. porro/statamic-connector.
      */
-    private function connectorName(): string
+    public function connectorName(): string
     {
         foreach (['porro/statamic-connector', 'porro/filament-connector'] as $package) {
             if (Report::installedVersion($package) !== null) {
@@ -104,7 +105,7 @@ class Reporter
     /**
      * @return Closure(string, array<string, string>, string): array{0: int, 1: string}
      */
-    private function transport(): Closure
+    public function transport(): Closure
     {
         return function (string $url, array $headers, string $body): array {
             try {

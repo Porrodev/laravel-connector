@@ -15,7 +15,7 @@ composer require porro/laravel-connector
 php artisan migrate
 ```
 
-The migration adds the `porro_blocklist`, `porro_safelist` and `porro_cache` tables. Then visit `/porro`. It's open in the `local` environment; anywhere else it needs a gate first (see [The /porro page](#the-porro-page)).
+The migration adds the `porro_blocklist`, `porro_safelist`, `porro_cache` and `porro_settings` tables. Then visit `/porro`. It's open in the `local` environment; anywhere else it needs a gate first (see [The /porro page](#the-porro-page)).
 
 The scheduler check, activity batching and nginx mode run on Laravel's scheduler, which needs one cron line. If it isn't running yet, `php artisan porro:cron` adds it to the server's crontab for you, from the project folder (the `current` folder on zero-downtime deploys). If it can't, it prints the line to add yourself. See [Scheduling reports](#scheduling-reports) for Forge, Ploi, Laravel Cloud, Vapor and other hosts.
 
@@ -48,7 +48,7 @@ use Illuminate\Support\Facades\Gate;
 Gate::define('viewPorro', fn (User $user) => in_array($user->email, ['ops@youragency.com']));
 ```
 
-Changing the lists also checks a `managePorroBlocklist` gate when you define one. Without it, anyone who can view the page can change the lists.
+Changing the lists also checks a `managePorroBlocklist` gate when you define one. Without it, anyone who can view the page can change the lists. The routes for connecting to Porro from the page (`/porro/connect`) need a `connectPorro` gate and are closed until you define it; the page has no button for them yet.
 
 - **Path:** set `PORRO_PATH` to move it.
 - **Middleware:** set `porro.page.middleware` to change it (default `web`).
@@ -62,7 +62,7 @@ Changing the lists also checks a `managePorroBlocklist` gate when you define one
 
 Works without a Porro account. IP addresses aren't sent to Porro, and stay on the site apart from the lookups and Cloudflare blocking listed under [Where IP addresses go](#where-ip-addresses-go).
 
-- **Run the migration first:** `php artisan migrate` adds the `porro_blocklist`, `porro_safelist` and `porro_cache` tables.
+- **Run the migration first:** `php artisan migrate` adds the `porro_blocklist`, `porro_safelist`, `porro_cache` and `porro_settings` tables.
 - **What's watched:** requests for scanner paths like `/.env`, `/.git` and `wp-login.php`, failed sign-ins, bursts of 404s and floods of form posts.
   - Failed sign-ins are counted from Laravel's `Illuminate\Auth\Events\Failed` event. The session guard's `attempt()` fires it, so the usual login forms (Breeze, Fortify, Filament's and Statamic's) are covered. Token guards, Sanctum tokens and custom guards that don't fire the event aren't counted.
   - Counts are kept for 48 hours in Porro's own `porro_cache` table, so a deploy's `cache:clear` doesn't wipe them. Expired rows are cleared hourly; a database backup taken in those 48 hours will include them. Set `PORRO_ACTIVITY_STORE` to use another cache store instead, such as a dedicated Redis connection.
@@ -123,6 +123,8 @@ php artisan porro:connect <site key>
 ```
 
 `porro:connect` writes `PORRO_KEY` to `.env` and sends the first report. The Site health tab then shows the site's open findings in Porro (uptime, SSL, the domain, the server's OS and packages) alongside the checks above, each linking into Porro.
+
+The site key can also come from **Connect to Porro** in the Statamic control panel, which needs no key to copy: the key is made on the site and kept in its `porro_settings` table, encrypted with the app key. `PORRO_KEY` in the environment wins when it's set. `php artisan porro:status` says which one is in use.
 
 Reports then go every 15 minutes on the scheduler. If it isn't running, `porro:connect` offers to add the cron line, as `porro:cron` does. Use `--cron` to add it without asking (handy in provisioning scripts) or `--no-cron` to leave the crontab alone. Connected from another machine? Run `php artisan porro:cron` on the server; it needs no key, and once the site is connected it sends a report straight away. On Laravel Cloud and Vapor, set `PORRO_KEY` as an environment variable instead.
 
