@@ -26,11 +26,19 @@ class Reporting
             return 'PORRO_ENABLED=false';
         }
 
-        if ($setting === null && ! app()->environment(['production', 'prod', 'live'])) {
+        if ($setting === null && ! self::production()) {
             return 'not production (APP_ENV='.app()->environment().'). Set PORRO_ENABLED=true to report from here';
         }
 
         return null;
+    }
+
+    /**
+     * Whether this copy calls itself the live site.
+     */
+    public static function production(): bool
+    {
+        return app()->environment(['production', 'prod', 'live']);
     }
 
     /**

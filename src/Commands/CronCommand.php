@@ -8,6 +8,7 @@ use Porro\Core\Report;
 use Porro\Laravel\Commands\Concerns\SetsUpCron;
 use Porro\Laravel\Reporter;
 use Porro\Laravel\Reporting;
+use Porro\Laravel\SiteKeys;
 
 /**
  * Adds the scheduler's cron line on its own, without the site key:
@@ -23,7 +24,7 @@ class CronCommand extends Command
 
     public function handle(Reporter $reporter): int
     {
-        $connected = filled(config('porro.key'));
+        $connected = $this->laravel->make(SiteKeys::class)->connected();
 
         if ($this->setUpCron(ask: false, force: true, connected: $connected)) {
             $this->tellPorro($reporter, $connected);

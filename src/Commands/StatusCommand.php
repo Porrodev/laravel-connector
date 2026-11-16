@@ -6,6 +6,7 @@ use Illuminate\Console\Command;
 use Porro\Laravel\Companions;
 use Porro\Laravel\Reporter;
 use Porro\Laravel\Reporting;
+use Porro\Laravel\SiteKeys;
 
 class StatusCommand extends Command
 {
@@ -42,7 +43,11 @@ class StatusCommand extends Command
         }
 
         $this->components->twoColumnDetail('composer.lock', $report['lock']['hash'] ?? 'not found');
-        $this->components->twoColumnDetail('Key set', config('porro.key') ? 'yes' : 'no');
+        $this->components->twoColumnDetail('Key set', match ($this->laravel->make(SiteKeys::class)->source()) {
+            SiteKeys::ENV => 'yes (PORRO_KEY)',
+            SiteKeys::STORED => 'yes (connected from the control panel)',
+            default => 'no',
+        });
         $this->components->twoColumnDetail('Reporting', ($reason = Reporting::offReason()) ? "off: {$reason}" : 'on');
 
         if ($hints = $this->laravel->make(Companions::class)->hints()) {
