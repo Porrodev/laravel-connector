@@ -6,6 +6,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Porro\Core\SiteKey;
+use RuntimeException;
 use SensitiveParameter;
 use Throwable;
 
@@ -122,7 +123,7 @@ class SiteKeys
      */
     public function store(#[SensitiveParameter] SiteKey $key, ?string $workspace = null, ?string $host = null): void
     {
-        $value = Crypt::encryptString((string) json_encode([
+        $value = self::seal((string) json_encode([
             'token' => $key->token(),
             'workspace' => $workspace,
             'host' => $host,
@@ -132,6 +133,21 @@ class SiteKeys
         DB::table(self::TABLE)->updateOrInsert(['key' => self::ROW], ['value' => $value, 'updated_at' => Carbon::now(), 'created_at' => Carbon::now()]);
 
         $this->stored = null;
+    }
+
+    /**
+     * Encrypt something that holds a key. If encrypting fails, the
+     * framework's exception carries the plain text in its trace (the
+     * Crypt facade's arguments, and the encrypter's own on Laravel 10), so
+     * it's swapped for one that doesn't.
+     */
+    public static function seal(#[SensitiveParameter] string $plain): string
+    {
+        try {
+            return app('encrypter')->encryptString($plain);
+        } catch (Throwable) {
+            throw new RuntimeException('Couldn’t encrypt the Porro site key. Check the app key and cipher.');
+        }
     }
 
     public function forget(): void

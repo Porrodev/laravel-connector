@@ -110,7 +110,7 @@ class PanelConnect
 
         $state = Str::random(40);
 
-        Activity::store()->put($this->pendingKey($state), Crypt::encryptString((string) json_encode([
+        Activity::store()->put($this->pendingKey($state), SiteKeys::seal((string) json_encode([
             'seed' => $key->seed(),
             'id' => $pending->id,
             'user' => $user,

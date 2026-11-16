@@ -560,3 +560,25 @@ describe('what the panel should show', function () {
         $this->actingAs(panelUser())->get(SITE.'/porro')->assertOk()->assertDontSee('Connect to Porro');
     });
 });
+
+it('keeps the key out of the exception when encrypting fails', function () {
+    app()->bind('encrypter', fn () => new class
+    {
+        public function encryptString(string $value): string
+        {
+            throw new RuntimeException('Could not encrypt '.$value);
+        }
+    });
+
+    try {
+        SiteKeys::seal('porro_seed_in_the_clear');
+    } catch (Throwable $e) {
+    }
+
+    // Every string handed to any call on the way, as a trace would show it.
+    $arguments = collect($e->getTrace())->flatMap(fn (array $frame) => $frame['args'] ?? [])->filter(fn ($argument) => is_string($argument))->implode(' ');
+
+    expect($e)->toBeInstanceOf(RuntimeException::class)
+        ->and($e->getPrevious())->toBeNull()
+        ->and($e->getMessage().$arguments)->not->toContain('porro_seed_in_the_clear');
+});
