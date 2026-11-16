@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.11 - 2026-11-16
 
 - **Disconnect from Porro.** `php artisan porro:disconnect` undoes a connection made from the control panel: it tells Porro, then deletes the key from the site's database (`Porro\Laravel\Connect\Disconnect`). The key goes even when Porro can't be reached; Porro then shows the site as not reporting. The Statamic and Filament panels get a **Disconnect** button that uses it. A site connected with `PORRO_KEY` in its environment is told to remove it there. On a copy that isn't the live site the command refuses, because a staging copy of the live database holds the live site's key; `--live` overrides that. Requires `porro/php-core` 0.3.9.
 - When Porro turns the stored key away (the site was removed there, or given a new key), the connector deletes it and remembers that it happened (`SiteKeys::turnedAway()`), so the panel can say so and offer to connect again, in place of failing quietly every hour. A key from the environment is left alone.
