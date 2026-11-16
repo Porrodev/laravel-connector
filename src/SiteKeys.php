@@ -30,6 +30,8 @@ class SiteKeys
 
     private const PROBE = 'write_check';
 
+    private const TURNED_AWAY = 'turned_away';
+
     /**
      * Who the stored key is connected to. Never the key itself: that is
      * read and decrypted each time it's needed, and kept nowhere.
@@ -131,8 +133,56 @@ class SiteKeys
         ]));
 
         DB::table(self::TABLE)->updateOrInsert(['key' => self::ROW], ['value' => $value, 'updated_at' => Carbon::now(), 'created_at' => Carbon::now()]);
+        DB::table(self::TABLE)->where('key', self::TURNED_AWAY)->delete();
 
         $this->stored = null;
+    }
+
+    /**
+     * Porro no longer accepts the stored key: the site was removed there,
+     * or given a new key. The key is no use to anyone, so it's deleted,
+     * and who it was for and when is kept so the panel can say what
+     * happened. Does nothing for a key from the environment.
+     */
+    public function turnAway(): void
+    {
+        $stored = $this->stored();
+
+        if ($stored === null || $this->fromEnv() !== null) {
+            return;
+        }
+
+        try {
+            DB::table(self::TABLE)->updateOrInsert(['key' => self::TURNED_AWAY], [
+                'value' => (string) json_encode(['workspace' => $stored['workspace'], 'at' => Carbon::now()->toIso8601String()]),
+                'updated_at' => Carbon::now(),
+                'created_at' => Carbon::now(),
+            ]);
+        } catch (Throwable) {
+            // The note is a nicety; the key still goes.
+        }
+
+        $this->forget();
+    }
+
+    /**
+     * Set when Porro turned the stored key away, until the site connects
+     * again. Nothing secret in it.
+     *
+     * @return array{workspace: string|null, at: string|null}|null
+     */
+    public function turnedAway(): ?array
+    {
+        try {
+            $data = json_decode((string) DB::table(self::TABLE)->where('key', self::TURNED_AWAY)->value('value'), true);
+        } catch (Throwable) {
+            return null;
+        }
+
+        return is_array($data) ? [
+            'workspace' => is_string($data['workspace'] ?? null) ? $data['workspace'] : null,
+            'at' => is_string($data['at'] ?? null) ? $data['at'] : null,
+        ] : null;
     }
 
     /**
