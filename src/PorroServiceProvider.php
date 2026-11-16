@@ -25,6 +25,7 @@ use Porro\Laravel\Commands\BlocklistSyncCommand;
 use Porro\Laravel\Commands\CloudflareCommand;
 use Porro\Laravel\Commands\ConnectCommand;
 use Porro\Laravel\Commands\CronCommand;
+use Porro\Laravel\Commands\DisconnectCommand;
 use Porro\Laravel\Commands\ReportCommand;
 use Porro\Laravel\Commands\StatusCommand;
 use Porro\Laravel\Http\Authorize;
@@ -73,7 +74,7 @@ class PorroServiceProvider extends ServiceProvider
         }
 
         $this->publishes([__DIR__.'/../config/porro.php' => config_path('porro.php')], 'porro-config');
-        $this->commands([BlockCommand::class, BlocklistSyncCommand::class, CloudflareCommand::class, ConnectCommand::class, CronCommand::class, ReportCommand::class, StatusCommand::class]);
+        $this->commands([BlockCommand::class, BlocklistSyncCommand::class, CloudflareCommand::class, ConnectCommand::class, CronCommand::class, DisconnectCommand::class, ReportCommand::class, StatusCommand::class]);
 
         // nginx mode only: every server writes its own deny file, so this runs
         // every minute on each (never onOneServer). Otherwise the blocklist is

@@ -73,7 +73,23 @@ class Reporter
             Cache::forever(self::SENT_NPM_LOCK_KEY, $report->npmLockHash());
         }
 
+        // The site was removed in Porro, or given a new key there: the one
+        // kept here is finished. Never a key passed in or from the environment.
+        if ($key === null && $result->keyTurnedAway()) {
+            $this->keys->turnAway();
+        }
+
         return $result;
+    }
+
+    /**
+     * Forget which lock files Porro has seen, so the next site this one
+     * connects to gets the package lists with its first report.
+     */
+    public function forgetSent(): void
+    {
+        Cache::forget(self::SENT_LOCK_KEY);
+        Cache::forget(self::SENT_NPM_LOCK_KEY);
     }
 
     /**
