@@ -1,11 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.3.10 - 2026-11-16
 
 - **Connect from the control panel, with no key to copy.** The connector can make its own key pair, ask Porro to connect, and finish once someone signed in to Porro approves it in their browser (`Porro\Laravel\Connect\PanelConnect`). The Statamic connector's **Connect to Porro** button uses it. Requires `porro/php-core` 0.3.8.
 - The key made that way is kept in a new `porro_settings` table, encrypted with the app key: run `php artisan migrate`. `PORRO_KEY` in the environment still wins, so sites connected with `porro:connect` or their host's settings are unchanged. Reports, the scheduler, Site health, `porro:report`, `porro:cron` and `porro:status` all take the key from `Porro\Laravel\SiteKeys`; `porro:status` says where it came from.
 - A request to connect can only be finished from the browser session that started it, by the same signed-in person, within ten minutes. It never starts on a copy that isn't production, when `PORRO_KEY` is set, or when the site is on https behind a proxy the app doesn't trust (it explains instead of asking Porro to connect the `http://` address).
 - The `/porro` page has the routes (`POST` and `GET /porro/connect`, behind a new `connectPorro` gate that is closed until you define it) but no button yet.
+
 ## 0.3.9 - 2026-11-13
 
 - Site health checks how the site sends email, in production: mail that isn't sent at all (the `log` or `array` mailer, or a test inbox such as Mailpit), mail sent by the web server itself (`sendmail` or SMTP on localhost), and a sender address that's missing, still `hello@example.com`, a free mailbox, or on a different domain from `APP_URL`. Shown in the Statamic and Filament panels and on `/porro`; nothing about it is sent to Porro. Requires `porro/php-core` 0.3.7.
